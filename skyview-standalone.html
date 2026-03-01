@@ -331,13 +331,14 @@ function drawPolarPlot(canvas, skyview, azimuthDeg) {
   ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2);
   ctx.fillStyle = 'cyan'; ctx.fill();
 
-  // Percentage inside the plot
-  const p = parseFloat(skyview.pct);
-  ctx.font = 'bold 16px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillText(`${skyview.pct}%`, cx + 1, cy + 1); // shadow
-  ctx.fillStyle = p >= 90 ? '#4c4' : p >= 70 ? '#fc4' : '#f66';
-  ctx.fillText(`${skyview.pct}%`, cx, cy);
+  // Obstruction % inside the plot (100 - skyview)
+  const obst = (100 - parseFloat(skyview.pct)).toFixed(1);
+  const obstColor = obst < 15 ? '#4c4' : obst < 22 ? '#fc4' : '#f66';
+  ctx.font = 'bold 24px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillText(`${obst}%`, cx + 1, cy + 1); // shadow
+  ctx.fillStyle = obstColor;
+  ctx.fillText(`${obst}%`, cx, cy);
 }
 
 // ============================================================
@@ -462,8 +463,7 @@ async function main() {
     if (!ctCartographic) return;
     const lat = Cesium.Math.toDegrees(ctCartographic.latitude);
     const lon = Cesium.Math.toDegrees(ctCartographic.longitude);
-    const pct = skyview ? skyview.pct + '% clear' : '';
-    polarLabel.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}` + (pct ? ` · ${pct}` : '');
+    polarLabel.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
   }
 
   // Camera-idle overlay
