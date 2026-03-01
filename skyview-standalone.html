@@ -384,7 +384,6 @@ async function main() {
   viewer.scene.skyAtmosphere.show = true;
 
   if (IS_MOBILE) {
-    viewer.resolutionScale = 0.75;
     viewer.scene.fog.enabled = false;
     viewer.scene.globe && (viewer.scene.globe.tileCacheSize = 50);
   }
