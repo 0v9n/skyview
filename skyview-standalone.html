@@ -330,14 +330,14 @@ function drawPolarPlot(canvas, skyview, azimuthDeg) {
   ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2);
   ctx.fillStyle = 'cyan'; ctx.fill();
 
-  // Obstruction % inside the plot (100 - skyview)
-  const obst = (100 - parseFloat(skyview.pct)).toFixed(1);
-  const obstColor = obst < 15 ? '#4c4' : obst < 22 ? '#fc4' : '#f66';
+  // Clear sky % inside the plot
+  const clear = parseFloat(skyview.pct);
+  const clearColor = clear >= 85 ? '#4c4' : clear >= 78 ? '#fc4' : '#f66';
   ctx.font = 'bold 24px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillText(`${obst}%`, cx + 1, cy + 1); // shadow
-  ctx.fillStyle = obstColor;
-  ctx.fillText(`${obst}%`, cx, cy);
+  ctx.fillText(`${skyview.pct}%`, cx + 1, cy + 1); // shadow
+  ctx.fillStyle = clearColor;
+  ctx.fillText(`${skyview.pct}%`, cx, cy);
 }
 
 // ============================================================
