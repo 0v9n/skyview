@@ -124,20 +124,28 @@ function computeSkyview(viewer, ctCart, enuTx, pitchDeg, azDeg) {
 
 // ============================================================
 // DOME OVERLAY — drawn on 2D canvas, NOT in Cesium scene
+// Pre-allocated scratch objects to avoid GC pressure
 // ============================================================
+const _scratchC3 = new Cesium.Cartesian3();
+const _scratchP  = new Cesium.Cartesian3();
+const _scratchN  = new Cesium.Cartesian3();
+const _scratchN2 = new Cesium.Cartesian3();
+const _scratchCorners = [new Cesium.Cartesian3(), new Cesium.Cartesian3(), new Cesium.Cartesian3(), new Cesium.Cartesian3()];
+
 function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
   ctx.clearRect(0, 0, w, h);
   if (!skyview || !ctCart) return;
 
   const minEl = MIN_ELEV_DEG*Math.PI/180, maxEl = Math.PI/2;
+  const scene = viewer.scene;
 
-  // Project a world point to screen
   function toScreen(worldPos) {
-    const sp = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, worldPos);
+    const sp = Cesium.SceneTransforms.wgs84ToWindowCoordinates(scene, worldPos);
     return sp ? [sp.x * OV_DPR, sp.y * OV_DPR] : null;
   }
 
-  // Draw dome cells
+  // Draw dome cells — batch by fill color to reduce state changes
+  const redCells = [], greenCells = [];
   for (let ai=0; ai<AZ_N; ai++) {
     for (let ei=0; ei<EL_N-1; ei++) {
       const cell = skyview.results[ai][ei];
@@ -147,45 +155,58 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
       const el0=minEl+(ei/(EL_N-1))*(maxEl-minEl);
       const el1=minEl+((ei+1)/(EL_N-1))*(maxEl-minEl);
 
-      const corners = [
-        new Cesium.Cartesian3(DOME_R*Math.sin(az0)*Math.cos(el0), DOME_R*Math.cos(az0)*Math.cos(el0), DOME_R*Math.sin(el0)),
-        new Cesium.Cartesian3(DOME_R*Math.sin(az0)*Math.cos(el1), DOME_R*Math.cos(az0)*Math.cos(el1), DOME_R*Math.sin(el1)),
-        new Cesium.Cartesian3(DOME_R*Math.sin(az1)*Math.cos(el1), DOME_R*Math.cos(az1)*Math.cos(el1), DOME_R*Math.sin(el1)),
-        new Cesium.Cartesian3(DOME_R*Math.sin(az1)*Math.cos(el0), DOME_R*Math.cos(az1)*Math.cos(el0), DOME_R*Math.sin(el0)),
-      ].map(p => toScreen(Cesium.Matrix4.multiplyByPoint(enuTx, p, new Cesium.Cartesian3())));
+      _scratchCorners[0].x=DOME_R*Math.sin(az0)*Math.cos(el0); _scratchCorners[0].y=DOME_R*Math.cos(az0)*Math.cos(el0); _scratchCorners[0].z=DOME_R*Math.sin(el0);
+      _scratchCorners[1].x=DOME_R*Math.sin(az0)*Math.cos(el1); _scratchCorners[1].y=DOME_R*Math.cos(az0)*Math.cos(el1); _scratchCorners[1].z=DOME_R*Math.sin(el1);
+      _scratchCorners[2].x=DOME_R*Math.sin(az1)*Math.cos(el1); _scratchCorners[2].y=DOME_R*Math.cos(az1)*Math.cos(el1); _scratchCorners[2].z=DOME_R*Math.sin(el1);
+      _scratchCorners[3].x=DOME_R*Math.sin(az1)*Math.cos(el0); _scratchCorners[3].y=DOME_R*Math.cos(az1)*Math.cos(el0); _scratchCorners[3].z=DOME_R*Math.sin(el0);
 
-      if (corners.some(c => !c)) continue; // off screen
-
-      ctx.beginPath();
-      ctx.moveTo(corners[0][0], corners[0][1]);
-      for (let i=1; i<4; i++) ctx.lineTo(corners[i][0], corners[i][1]);
-      ctx.closePath();
-      ctx.fillStyle = cell.hit ? 'rgba(220,30,20,0.35)' : 'rgba(20,200,60,0.2)';
-      ctx.fill();
+      const pts = [];
+      let skip = false;
+      for (let i=0; i<4; i++) {
+        Cesium.Matrix4.multiplyByPoint(enuTx, _scratchCorners[i], _scratchP);
+        const s = toScreen(_scratchP);
+        if (!s) { skip=true; break; }
+        pts.push(s[0], s[1]);
+      }
+      if (skip) continue;
+      (cell.hit ? redCells : greenCells).push(pts);
     }
   }
 
-  // Draw obstructed ray lines — extend to actual hit point
+  // Batch draw — two fill passes instead of hundreds of state changes
+  ctx.fillStyle = 'rgba(220,30,20,0.35)';
+  ctx.beginPath();
+  for (const p of redCells) { ctx.moveTo(p[0],p[1]); ctx.lineTo(p[2],p[3]); ctx.lineTo(p[4],p[5]); ctx.lineTo(p[6],p[7]); ctx.closePath(); }
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(20,200,60,0.2)';
+  ctx.beginPath();
+  for (const p of greenCells) { ctx.moveTo(p[0],p[1]); ctx.lineTo(p[2],p[3]); ctx.lineTo(p[4],p[5]); ctx.lineTo(p[6],p[7]); ctx.closePath(); }
+  ctx.fill();
+
+  // Obstructed ray lines — single batched path
+  ctx.beginPath();
   for (const row of skyview.results) {
     for (const r of row) {
       if (!r.inside || !r.hit) continue;
-      const endENU = Cesium.Cartesian3.multiplyByScalar(
-        Cesium.Cartesian3.normalize(r.enuDir, new Cesium.Cartesian3()), r.hitDist, new Cesium.Cartesian3());
-      const endW = Cesium.Matrix4.multiplyByPoint(enuTx, endENU, new Cesium.Cartesian3());
-      const s0 = toScreen(ctCart), s1 = toScreen(endW);
+      Cesium.Cartesian3.normalize(r.enuDir, _scratchN);
+      Cesium.Cartesian3.multiplyByScalar(_scratchN, r.hitDist, _scratchN);
+      Cesium.Matrix4.multiplyByPoint(enuTx, _scratchN, _scratchP);
+      const s0 = toScreen(ctCart), s1 = toScreen(_scratchP);
       if (!s0 || !s1) continue;
-      ctx.beginPath(); ctx.moveTo(s0[0],s0[1]); ctx.lineTo(s1[0],s1[1]);
-      ctx.strokeStyle = 'rgba(255,60,40,0.2)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.moveTo(s0[0],s0[1]); ctx.lineTo(s1[0],s1[1]);
     }
   }
+  ctx.strokeStyle = 'rgba(255,60,40,0.2)'; ctx.lineWidth = 1; ctx.stroke();
 
   // Elevation ring
   ctx.beginPath();
   const elRad = MIN_ELEV_DEG*Math.PI/180;
   for (let i=0; i<=72; i++) {
     const az = (i/72)*2*Math.PI;
-    const enu = new Cesium.Cartesian3(DOME_R*Math.sin(az)*Math.cos(elRad), DOME_R*Math.cos(az)*Math.cos(elRad), DOME_R*Math.sin(elRad));
-    const sp = toScreen(Cesium.Matrix4.multiplyByPoint(enuTx, enu, new Cesium.Cartesian3()));
+    _scratchC3.x=DOME_R*Math.sin(az)*Math.cos(elRad); _scratchC3.y=DOME_R*Math.cos(az)*Math.cos(elRad); _scratchC3.z=DOME_R*Math.sin(elRad);
+    Cesium.Matrix4.multiplyByPoint(enuTx, _scratchC3, _scratchP);
+    const sp = toScreen(_scratchP);
     if (!sp) continue;
     if (i===0) ctx.moveTo(sp[0],sp[1]); else ctx.lineTo(sp[0],sp[1]);
   }
@@ -200,11 +221,10 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
   }
 
   // Beam axis
-  const axENU = Cesium.Cartesian3.multiplyByScalar(
-    Cesium.Cartesian3.normalize(beamAxis(PITCH_DEG, skyview._azDeg||0), new Cesium.Cartesian3()),
-    DOME_R*0.7, new Cesium.Cartesian3());
-  const axW = Cesium.Matrix4.multiplyByPoint(enuTx, axENU, new Cesium.Cartesian3());
-  const axS0 = toScreen(ctCart), axS1 = toScreen(axW);
+  Cesium.Cartesian3.normalize(beamAxis(PITCH_DEG, skyview._azDeg||0), _scratchN2);
+  Cesium.Cartesian3.multiplyByScalar(_scratchN2, DOME_R*0.7, _scratchN2);
+  Cesium.Matrix4.multiplyByPoint(enuTx, _scratchN2, _scratchP);
+  const axS0 = toScreen(ctCart), axS1 = toScreen(_scratchP);
   if (axS0 && axS1) {
     ctx.beginPath(); ctx.moveTo(axS0[0],axS0[1]); ctx.lineTo(axS1[0],axS1[1]);
     ctx.strokeStyle = 'rgba(255,220,40,0.8)'; ctx.lineWidth = 3; ctx.stroke();
@@ -342,11 +362,24 @@ async function main() {
   viewer.scene.skyAtmosphere.show = true;
 
   if (IS_MOBILE) {
-    viewer.resolutionScale = 0.75;             // render at 75% resolution
+    viewer.resolutionScale = 0.75;
     viewer.scene.fog.enabled = false;
     viewer.scene.globe && (viewer.scene.globe.tileCacheSize = 50);
-    viewer.scene.requestRenderMode = true;     // only render when something changes
-    viewer.scene.maximumRenderTimeChange = 0.1;
+  }
+
+  // Camera controller — match Google Earth feel
+  const cc = viewer.scene.screenSpaceCameraController;
+  cc.inertiaSpin = 0.9;             // high orbit momentum (GE-like glide)
+  cc.inertiaTranslate = 0.9;       // high pan momentum
+  cc.inertiaZoom = 0.8;            // smooth zoom deceleration
+  cc.minimumZoomDistance = 5;       // allow close zoom (street level)
+  cc.maximumZoomDistance = 50000;   // cap far zoom
+  cc.enableCollisionDetection = true;
+  if (IS_MOBILE) {
+    cc.zoomEventTypes = [Cesium.CameraEventType.PINCH];
+    cc.tiltEventTypes = [{ eventType: Cesium.CameraEventType.PINCH, modifier: undefined }];
+    cc.rotateEventTypes = [Cesium.CameraEventType.LEFT_DRAG];
+    cc._zoomFactor = 3;             // faster pinch zoom response
   }
 
   try {
@@ -387,18 +420,38 @@ async function main() {
     updateHUD(dt);
   }
 
-  // Redraw overlay when camera moves (no re-raytrace, just re-project)
-  let overlayFrame = 0;
-  const OVERLAY_SKIP = IS_MOBILE ? 3 : 0; // on mobile, redraw every 4th frame
+  // Camera-idle overlay: hide during movement for smooth orbiting, redraw when idle
+  let cameraIdleTimer = null;
+  let lastCameraPos = new Cesium.Cartesian3();
+  const IDLE_DELAY = IS_MOBILE ? 200 : 100; // ms after camera stops moving
+
+  function redrawOverlayNow() {
+    if (!skyview || !ctCartesian || !lastEnuTx) return;
+    const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
+    const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + heightAGL);
+    ovCanvas.style.opacity = '1';
+    drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, ctRaised, lastEnuTx, skyview);
+  }
+
   viewer.scene.postRender.addEventListener(() => {
-    if (skyview && ctCartesian && lastEnuTx) {
-      if (++overlayFrame <= OVERLAY_SKIP) return;
-      overlayFrame = 0;
-      const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
-      const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + heightAGL);
-      drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, ctRaised, lastEnuTx, skyview);
+    if (!skyview || !ctCartesian) return;
+    const camPos = viewer.scene.camera.positionWC;
+    const moved = !Cesium.Cartesian3.equalsEpsilon(camPos, lastCameraPos, 0, 1e-6);
+    Cesium.Cartesian3.clone(camPos, lastCameraPos);
+
+    if (moved) {
+      // Camera is moving — hide overlay for smooth rendering
+      if (IS_MOBILE) {
+        ovCanvas.style.opacity = '0';
+        ovCtx.clearRect(0, 0, ovCanvas.width, ovCanvas.height);
+      }
+      if (cameraIdleTimer) clearTimeout(cameraIdleTimer);
+      cameraIdleTimer = setTimeout(redrawOverlayNow, IDLE_DELAY);
     }
   });
+
+  // Smooth fade transition for the overlay
+  ovCanvas.style.transition = 'opacity 0.15s ease-out';
 
   function updateHUD(ms) {
     if (!ctCartographic) { hud.innerHTML = 'Right-click to place point'; return; }
