@@ -72,7 +72,14 @@ Antenna obstruction analyzer. Place an antenna anywhere on Earth and instantly s
 
 **Hosted** — open [0v9n.github.io/skyview/skyview-standalone.html](https://0v9n.github.io/skyview/skyview-standalone.html)
 
-**Local** — run `python3 serve.py` (opens browser automatically on `:8090`)
+**Local** — the bundled API key is restricted to the hosted URL above. To run locally, get your own [Google Maps API key](https://developers.google.com/maps/documentation/tile/get-api-key) and replace it in the HTML:
+
+```js
+// line 310 in skyview-standalone.html
+const scene = { api_key: 'YOUR_API_KEY_HERE', ... };
+```
+
+Then run `python3 serve.py` (opens browser automatically on `:8090`)
 
 ### Controls
 
