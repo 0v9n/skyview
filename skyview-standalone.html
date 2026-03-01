@@ -413,8 +413,8 @@ async function main() {
   try {
     const tileset = await Cesium.createGooglePhotorealistic3DTileset();
     if (IS_MOBILE) {
-      tileset.maximumScreenSpaceError = 24;
-      tileset.maximumMemoryUsage = 256;
+      tileset.maximumScreenSpaceError = 16;  // keep default for accurate picking
+      tileset.maximumMemoryUsage = 384;      // moderate memory cap
     }
     viewer.scene.primitives.add(tileset);
   } catch(e) { console.warn('Google 3D tiles failed:', e); }
