@@ -50,6 +50,11 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
   transition: opacity 0.2s ease-out;
 }
 #polarFloat canvas { width: 160px; height: 160px; border-radius: 50%; display: block; cursor: crosshair; touch-action: none; }
+#polarLabel {
+  color: #ccc; font-size: 10px; text-align: center; margin-top: 2px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  white-space: nowrap;
+}
 
 /* Bottom controls bar */
 #bottomBar {
@@ -116,6 +121,7 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 <!-- Polar plot — always visible in top-right after point placed -->
 <div id="polarFloat">
   <canvas id="polarCanvas" width="480" height="480"></canvas>
+  <div id="polarLabel"></div>
 </div>
 <div id="panel">
   <div class="hud" id="hud"></div>
@@ -364,6 +370,7 @@ async function main() {
   const hud = document.getElementById('hud');
   const panel = document.getElementById('panel');
   const polarFloat = document.getElementById('polarFloat');
+  const polarLabel = document.getElementById('polarLabel');
   const bottomBar = document.getElementById('bottomBar');
   const ovCanvas = document.getElementById('overlay');
   const ovCtx = ovCanvas.getContext('2d');
@@ -466,7 +473,16 @@ async function main() {
 
     drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, ctRaised, enuTx, skyview);
     drawPolarPlot(document.getElementById('polarCanvas'), skyview, azimuthDeg);
+    updatePolarLabel();
     updateHUD(dt);
+  }
+
+  function updatePolarLabel() {
+    if (!ctCartographic) return;
+    const lat = Cesium.Math.toDegrees(ctCartographic.latitude);
+    const lon = Cesium.Math.toDegrees(ctCartographic.longitude);
+    const pct = skyview ? skyview.pct + '% clear' : '';
+    polarLabel.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}` + (pct ? ` · ${pct}` : '');
   }
 
   // Camera-idle overlay
