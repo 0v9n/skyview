@@ -8,10 +8,10 @@ Antenna obstruction analyzer. Place an antenna anywhere on Earth and instantly s
  skyview-standalone.html (single file, zero dependencies to install)
  ┌─────────────────────────────────────────────────────────────┐
  │                                                             │
- │   ┌──────────────┐    ┌──────────────┐   ┌──────────────┐  │
- │   │  CesiumJS    │    │  Raytrace    │   │  UI Panel    │  │
- │   │  3D Viewer   │───>│  Engine      │──>│  + Polar Plot│  │
- │   └──────┬───────┘    └──────────────┘   └──────────────┘  │
+ │   ┌──────────────┐    ┌──────────────┐   ┌──────────────┐   │
+ │   │  CesiumJS    │    │  Raytrace    │   │  UI Panel    │   │
+ │   │  3D Viewer   │───>│  Engine      │──>│  + Polar Plot│   │
+ │   └──────┬───────┘    └──────────────┘   └──────────────┘   │
  │          │                                                  │
  │          │ pickFromRay()                                    │
  │          v                                                  │
@@ -57,14 +57,14 @@ Antenna obstruction analyzer. Place an antenna anywhere on Earth and instantly s
 ```
           Zenith
             │
-            │  ╱ beam cone
+            │ ╱  beam cone
             │╱   (half-angle 55°)
             ┼─── pitch 15° from vertical
            ╱│
-          ╱  │
-   ──────╱───┼──── min elevation 35°
-        ╱    │
-  ─────╱─────┴───── horizon
+          ╱ │
+   ──────╱──┼──── min elevation 35°
+        ╱   │
+  ─────╱────┴──── horizon
        antenna
 ```
 
