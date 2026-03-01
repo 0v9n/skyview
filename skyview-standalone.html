@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Skyview — Obstruction Analyzer</title>
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
+#cesiumContainer { width: 100vw; height: 100vh; }
+#overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1; }
+#panel {
+  position: fixed; top: 10px; right: 10px; z-index: 10;
+  background: rgba(10,12,20,0.88); border-radius: 10px; border: 1px solid #333;
+  padding: 10px; width: 260px; display: flex; flex-direction: column; gap: 8px;
+  backdrop-filter: blur(6px);
+}
+#panel input[type=text], #panel input[type=number] {
+  background: #1a1d28; color: #eee; border: 1px solid #444; border-radius: 5px;
+  padding: 6px 10px; font-size: 12px; outline: none; width: 100%;
+}
+#panel input[type=text]:focus { border-color: #4c4; }
+#panel input[type=text]::placeholder { color: #666; }
+#panel .hud { color: #bbb; font-size: 11px; line-height: 1.6; }
+#panel .hud b { color: #fff; }
+#panel .hud .g { color: #4c4; } #panel .hud .r { color: #f66; }
+#panel .hud .y { color: #fc4; } #panel .hud .c { color: #4cc; }
+#panel label { color: #999; font-size: 11px; display: flex; align-items: center; gap: 5px; }
+#panel input[type=range] { width: 80px; }
+#panel .row { display: flex; align-items: center; gap: 4px; }
+#panel .row button {
+  padding: 2px 7px; font-size: 13px; cursor: pointer;
+  background: #2a2d38; color: #ccc; border: 1px solid #444; border-radius: 4px;
+}
+#panel .row button:hover { background: #3a3d48; }
+#polarWrap { width: 240px; height: 240px; margin: 0 auto; }
+#polarCanvas { width: 240px; height: 240px; border-radius: 50%; }
+#controls {
+  position: fixed; bottom: 10px; left: 10px;
+  color: #777; font-size: 10px; background: rgba(0,0,0,0.5);
+  padding: 5px 10px; border-radius: 5px; pointer-events: none; z-index: 10;
+}
+.cesium-viewer-toolbar, .cesium-viewer-animationContainer,
+.cesium-viewer-timelineContainer, .cesium-viewer-bottom,
+.cesium-viewer-fullscreenContainer { display: none !important; }
+</style>
+</head>
+<body>
+<div id="cesiumContainer"></div>
+<canvas id="overlay"></canvas>
+<div id="panel">
+  <input type="text" id="searchInput" placeholder="Search: 'Eiffel Tower' or '48.858, 2.294'" spellcheck="false">
+  <div class="hud" id="hud">Right-click to place antenna</div>
+  <label>Azimuth <input type="range" id="slAz" min="0" max="355" value="0" step="5"><span id="lblAz">0°</span></label>
+  <label>ΔHeight <span class="row">
+    <input type="range" id="slHeight" min="0" max="100" value="0" step="1">
+    <button id="btnHMinus">−</button>
+    <input type="number" id="numHeight" value="0" min="0" max="200" step="1" style="width:40px;text-align:center;padding:2px;">
+    <button id="btnHPlus">+</button><span style="color:#666">m</span>
+  </span></label>
+  <div id="polarWrap"><canvas id="polarCanvas" width="480" height="480"></canvas></div>
+</div>
+<div id="controls">Right-click: place antenna | Drag: orbit | R: reset</div>
+<script>
+// ============================================================
+// SKYVIEW CONFIG
+// ============================================================
+const MIN_ELEV_DEG = 35, DOME_R = 5, RAY_RANGE = 100, AZ_N = 72, EL_N = 15;
+const BEAM_HALF_ANGLE_DEG = 55, PITCH_DEG = 15;
+
+function beamAxis(pitchDeg, azDeg) {
+  const p = pitchDeg * Math.PI / 180, a = azDeg * Math.PI / 180;
+  return Cesium.Cartesian3.fromElements(Math.sin(p)*Math.sin(a), Math.sin(p)*Math.cos(a), Math.cos(p));
+}
+
+// ============================================================
+// RAYTRACE — uses Cesium pickFromRay, no custom geometry in scene
+// ============================================================
+function computeSkyview(viewer, ctCart, enuTx, pitchDeg, azDeg) {
+  const minEl = MIN_ELEV_DEG*Math.PI/180, maxEl = Math.PI/2;
+  const axis = beamAxis(pitchDeg, azDeg);
+  const beamCos = Math.cos(BEAM_HALF_ANGLE_DEG*Math.PI/180);
+  const results = []; let clear=0, total=0;
+
+  for (let ai=0; ai<AZ_N; ai++) {
+    const row = [], az = (ai/AZ_N)*2*Math.PI;
+    for (let ei=0; ei<EL_N; ei++) {
+      const el = minEl + (ei/(EL_N-1))*(maxEl-minEl);
+      const enuDir = new Cesium.Cartesian3(Math.sin(az)*Math.cos(el), Math.cos(az)*Math.cos(el), Math.sin(el));
+      const inside = Cesium.Cartesian3.dot(
+        Cesium.Cartesian3.normalize(enuDir, new Cesium.Cartesian3()),
+        Cesium.Cartesian3.normalize(axis, new Cesium.Cartesian3())) >= beamCos;
+
+      let hit=false, hitDist=RAY_RANGE;
+      if (inside) {
+        const wDir = Cesium.Matrix4.multiplyByPointAsVector(enuTx, enuDir, new Cesium.Cartesian3());
+        Cesium.Cartesian3.normalize(wDir, wDir);
+        const pick = viewer.scene.pickFromRay(new Cesium.Ray(ctCart, wDir), []);
+        if (pick && pick.position) {
+          const d = Cesium.Cartesian3.distance(ctCart, pick.position);
+          if (d < RAY_RANGE) { hit=true; hitDist=d; }
+        }
+        total++; if(!hit) clear++;
+      }
+      row.push({inside, hit, hitDist, az, el, enuDir});
+    }
+    results.push(row);
+  }
+  return {results, clear, total, pct: total>0?(100*clear/total).toFixed(1):'N/A'};
+}
+
+// ============================================================
+// DOME OVERLAY — drawn on 2D canvas, NOT in Cesium scene
+// ============================================================
+function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
+  ctx.clearRect(0, 0, w, h);
+  if (!skyview || !ctCart) return;
+
+  const minEl = MIN_ELEV_DEG*Math.PI/180, maxEl = Math.PI/2;
+
+  // Project a world point to screen
+  function toScreen(worldPos) {
+    const sp = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, worldPos);
+    return sp ? [sp.x * devicePixelRatio, sp.y * devicePixelRatio] : null;
+  }
+
+  // Draw dome cells
+  for (let ai=0; ai<AZ_N; ai++) {
+    for (let ei=0; ei<EL_N-1; ei++) {
+      const cell = skyview.results[ai][ei];
+      if (!cell.inside) continue;
+
+      const az0=(ai/AZ_N)*2*Math.PI, az1=((ai+1)/AZ_N)*2*Math.PI;
+      const el0=minEl+(ei/(EL_N-1))*(maxEl-minEl);
+      const el1=minEl+((ei+1)/(EL_N-1))*(maxEl-minEl);
+
+      const corners = [
+        new Cesium.Cartesian3(DOME_R*Math.sin(az0)*Math.cos(el0), DOME_R*Math.cos(az0)*Math.cos(el0), DOME_R*Math.sin(el0)),
+        new Cesium.Cartesian3(DOME_R*Math.sin(az0)*Math.cos(el1), DOME_R*Math.cos(az0)*Math.cos(el1), DOME_R*Math.sin(el1)),
+        new Cesium.Cartesian3(DOME_R*Math.sin(az1)*Math.cos(el1), DOME_R*Math.cos(az1)*Math.cos(el1), DOME_R*Math.sin(el1)),
+        new Cesium.Cartesian3(DOME_R*Math.sin(az1)*Math.cos(el0), DOME_R*Math.cos(az1)*Math.cos(el0), DOME_R*Math.sin(el0)),
+      ].map(p => toScreen(Cesium.Matrix4.multiplyByPoint(enuTx, p, new Cesium.Cartesian3())));
+
+      if (corners.some(c => !c)) continue; // off screen
+
+      ctx.beginPath();
+      ctx.moveTo(corners[0][0], corners[0][1]);
+      for (let i=1; i<4; i++) ctx.lineTo(corners[i][0], corners[i][1]);
+      ctx.closePath();
+      ctx.fillStyle = cell.hit ? 'rgba(220,30,20,0.35)' : 'rgba(20,200,60,0.2)';
+      ctx.fill();
+    }
+  }
+
+  // Draw obstructed ray lines — extend to actual hit point
+  for (const row of skyview.results) {
+    for (const r of row) {
+      if (!r.inside || !r.hit) continue;
+      const endENU = Cesium.Cartesian3.multiplyByScalar(
+        Cesium.Cartesian3.normalize(r.enuDir, new Cesium.Cartesian3()), r.hitDist, new Cesium.Cartesian3());
+      const endW = Cesium.Matrix4.multiplyByPoint(enuTx, endENU, new Cesium.Cartesian3());
+      const s0 = toScreen(ctCart), s1 = toScreen(endW);
+      if (!s0 || !s1) continue;
+      ctx.beginPath(); ctx.moveTo(s0[0],s0[1]); ctx.lineTo(s1[0],s1[1]);
+      ctx.strokeStyle = 'rgba(255,60,40,0.2)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+  }
+
+  // Elevation ring
+  ctx.beginPath();
+  const elRad = MIN_ELEV_DEG*Math.PI/180;
+  for (let i=0; i<=72; i++) {
+    const az = (i/72)*2*Math.PI;
+    const enu = new Cesium.Cartesian3(DOME_R*Math.sin(az)*Math.cos(elRad), DOME_R*Math.cos(az)*Math.cos(elRad), DOME_R*Math.sin(elRad));
+    const sp = toScreen(Cesium.Matrix4.multiplyByPoint(enuTx, enu, new Cesium.Cartesian3()));
+    if (!sp) continue;
+    if (i===0) ctx.moveTo(sp[0],sp[1]); else ctx.lineTo(sp[0],sp[1]);
+  }
+  ctx.strokeStyle = 'rgba(255,255,60,0.7)'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Antenna marker
+  const ctS = toScreen(ctCart);
+  if (ctS) {
+    ctx.beginPath(); ctx.arc(ctS[0],ctS[1],6*devicePixelRatio,0,Math.PI*2);
+    ctx.fillStyle = 'cyan'; ctx.fill();
+    ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  // Beam axis
+  const axENU = Cesium.Cartesian3.multiplyByScalar(
+    Cesium.Cartesian3.normalize(beamAxis(PITCH_DEG, skyview._azDeg||0), new Cesium.Cartesian3()),
+    DOME_R*0.7, new Cesium.Cartesian3());
+  const axW = Cesium.Matrix4.multiplyByPoint(enuTx, axENU, new Cesium.Cartesian3());
+  const axS0 = toScreen(ctCart), axS1 = toScreen(axW);
+  if (axS0 && axS1) {
+    ctx.beginPath(); ctx.moveTo(axS0[0],axS0[1]); ctx.lineTo(axS1[0],axS1[1]);
+    ctx.strokeStyle = 'rgba(255,220,40,0.8)'; ctx.lineWidth = 3; ctx.stroke();
+  }
+}
+
+// ============================================================
+// 2D POLAR PLOT — skyview obstruction map
+// ============================================================
+function drawPolarPlot(canvas, skyview, azimuthDeg) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const cx = w/2, cy = h/2, r = w/2 - 20;
+  ctx.clearRect(0, 0, w, h);
+
+  // Background
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.fillStyle = '#1a1d28'; ctx.fill();
+
+  if (!skyview) {
+    ctx.fillStyle = '#555'; ctx.font = '14px system-ui';
+    ctx.textAlign = 'center'; ctx.fillText('No data', cx, cy);
+    return;
+  }
+
+  const minEl = MIN_ELEV_DEG * Math.PI / 180, maxEl = Math.PI / 2;
+
+  // Draw cells — top-down orthographic projection of dome hemisphere
+  // At azimuth az, elevation el: horizontal distance from center = cos(el)
+  // Normalized so el=minElev maps to edge (r), el=90° maps to center (0)
+  const cosMin = Math.cos(minEl);
+
+  for (let ai = 0; ai < AZ_N; ai++) {
+    for (let ei = 0; ei < EL_N - 1; ei++) {
+      const cell = skyview.results[ai][ei];
+
+      const az0 = (ai/AZ_N)*2*Math.PI, az1 = ((ai+1)/AZ_N)*2*Math.PI;
+      const el0 = minEl + (ei/(EL_N-1))*(maxEl-minEl);
+      const el1 = minEl + ((ei+1)/(EL_N-1))*(maxEl-minEl);
+
+      // Orthographic radius: cos(el) / cos(minEl), so edge=1, zenith≈0
+      const d0 = r * Math.cos(el0) / cosMin;
+      const d1 = r * Math.cos(el1) / cosMin;
+
+      // Canvas angle: az=0 → North → top of circle → canvas angle -π/2
+      const ca0 = az0 - Math.PI/2;
+      const ca1 = az1 - Math.PI/2;
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, d0, ca0, ca1, false);
+      ctx.arc(cx, cy, d1, ca1, ca0, true);
+      ctx.closePath();
+
+      if (!cell.inside) {
+        ctx.fillStyle = 'rgba(40,40,50,0.3)';
+      } else if (cell.hit) {
+        ctx.fillStyle = 'rgba(220,40,30,0.75)';
+      } else {
+        ctx.fillStyle = 'rgba(30,180,60,0.55)';
+      }
+      ctx.fill();
+    }
+  }
+
+  // Grid rings
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 0.5;
+  for (let i = 1; i <= 4; i++) {
+    ctx.beginPath(); ctx.arc(cx, cy, r*i/4, 0, Math.PI*2); ctx.stroke();
+  }
+
+  // Cardinal labels
+  ctx.fillStyle = '#aaa'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('N', cx, cy - r - 5);
+  ctx.fillText('S', cx, cy + r + 13);
+  ctx.fillText('E', cx + r + 10, cy + 4);
+  ctx.fillText('W', cx - r - 10, cy + 4);
+
+  // Beam axis indicator
+  const axAz = azimuthDeg * Math.PI / 180;
+  const axA = axAz - Math.PI/2; // same convention as cells
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + r*0.7*Math.cos(axA), cy + r*0.7*Math.sin(axA));
+  ctx.strokeStyle = 'rgba(255,220,40,0.8)'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Center dot
+  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2);
+  ctx.fillStyle = 'cyan'; ctx.fill();
+
+  // Skyview percentage
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 13px system-ui';
+  ctx.textAlign = 'center';
+  const p = parseFloat(skyview.pct);
+  ctx.fillStyle = p >= 90 ? '#4c4' : p >= 70 ? '#fc4' : '#f66';
+  ctx.fillText(`${skyview.pct}% clear`, cx, cy + r + 28);
+}
+
+// ============================================================
+// MAIN
+// ============================================================
+async function main() {
+  const hud = document.getElementById('hud');
+  const ovCanvas = document.getElementById('overlay');
+  const ovCtx = ovCanvas.getContext('2d');
+
+  function resizeOverlay() {
+    ovCanvas.width = innerWidth * devicePixelRatio;
+    ovCanvas.height = innerHeight * devicePixelRatio;
+    ovCanvas.style.width = innerWidth + 'px';
+    ovCanvas.style.height = innerHeight + 'px';
+  }
+  resizeOverlay();
+  window.addEventListener('resize', resizeOverlay);
+
+  const scene = { api_key: 'AIzaSyCWHeBH9emavlGBH9c-yXHIKT_CCDDJH4A', lat: 47.6695, lon: -122.1055 };
+
+  Cesium.GoogleMaps.defaultApiKey = scene.api_key;
+  Cesium.RequestScheduler.requestsByServer["tile.googleapis.com:443"] = 18;
+
+  const viewer = new Cesium.Viewer('cesiumContainer', {
+    imageryProvider: false, globe: false,
+    timeline: false, animation: false, homeButton: false,
+    sceneModePicker: false, baseLayerPicker: false,
+    navigationHelpButton: false, geocoder: false,
+    fullscreenButton: false, infoBox: false, selectionIndicator: false,
+    shadows: false,
+  });
+  viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date('2025-06-21T20:00:00Z'));
+  viewer.clock.shouldAnimate = false;
+
+  viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#87CEEB');
+  viewer.scene.sun.show = true;
+  viewer.scene.moon.show = false;
+  viewer.scene.skyBox.show = false;
+  viewer.scene.skyAtmosphere.show = true;
+
+  try {
+    const tileset = await Cesium.createGooglePhotorealistic3DTileset();
+    viewer.scene.primitives.add(tileset);
+  } catch(e) { console.warn('Google 3D tiles failed:', e); }
+
+  // Camera
+  const initCart = Cesium.Cartesian3.fromDegrees(scene.lon, scene.lat, 50);
+  const initTx = Cesium.Transforms.eastNorthUpToFixedFrame(initCart);
+  viewer.scene.camera.lookAtTransform(initTx,
+    new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30), Cesium.Math.toRadians(-25), 200));
+  viewer.scene.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+
+  // State
+  let ctCartesian = null, ctCartographic = null;
+  let azimuthDeg = 0, skyview = null, heightAGL = 0;
+  let lastEnuTx = null; // for overlay redraw on camera move
+
+  function runRaytrace() {
+    if (!ctCartesian) return;
+    const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
+    const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + heightAGL);
+    const enuTx = Cesium.Transforms.eastNorthUpToFixedFrame(ctRaised);
+    lastEnuTx = enuTx;
+
+    const t0 = performance.now();
+    skyview = computeSkyview(viewer, ctRaised, enuTx, PITCH_DEG, azimuthDeg);
+    skyview._azDeg = azimuthDeg;
+    const dt = performance.now() - t0;
+
+    drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, ctRaised, enuTx, skyview);
+    drawPolarPlot(document.getElementById('polarCanvas'), skyview, azimuthDeg);
+    updateHUD(dt);
+  }
+
+  // Redraw overlay when camera moves (no re-raytrace, just re-project)
+  viewer.scene.postRender.addEventListener(() => {
+    if (skyview && ctCartesian && lastEnuTx) {
+      const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
+      const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + heightAGL);
+      drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, ctRaised, lastEnuTx, skyview);
+    }
+  });
+
+  function updateHUD(ms) {
+    if (!ctCartographic) { hud.innerHTML = 'Right-click to place antenna'; return; }
+    const lat = Cesium.Math.toDegrees(ctCartographic.latitude);
+    const lon = Cesium.Math.toDegrees(ctCartographic.longitude);
+    const lines = [
+      `<b>${lat.toFixed(4)}°N, ${Math.abs(lon).toFixed(4)}°W</b>`,
+      `ΔHeight: <span class="y">${heightAGL}m</span> above surface`,
+      `Pitch: <span class="y">${PITCH_DEG}°</span> | Azimuth: <span class="y">${azimuthDeg}°</span>`,
+      `Beam: ${BEAM_HALF_ANGLE_DEG}° half-angle (min elev ${MIN_ELEV_DEG}°) | Dome: ${DOME_R}m`
+    ];
+    if (skyview) {
+      const p = parseFloat(skyview.pct), cls = p>=90?'g':p>=70?'y':'r';
+      lines.push(`Skyview: <span class="${cls}">${skyview.pct}% clear</span> (${skyview.clear}/${skyview.total} in beam)`);
+      if (ms !== undefined) lines.push(`Raytrace: ${ms.toFixed(0)}ms`);
+    }
+    hud.innerHTML = lines.join('<br>');
+  }
+
+  // ============================================================
+  // INPUT
+  // ============================================================
+  const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+  handler.setInputAction(function(click) {
+    const cart = viewer.scene.pickPosition(click.position);
+    if (!cart) return;
+    ctCartesian = cart;
+    ctCartographic = Cesium.Cartographic.fromCartesian(cart);
+    runRaytrace();
+  }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+
+  window.addEventListener('keydown', e => {
+    if (document.activeElement === document.getElementById('searchInput')) return;
+    if (e.key==='r'||e.key==='R') {
+      viewer.scene.camera.lookAtTransform(initTx,
+        new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30),Cesium.Math.toRadians(-25),200));
+      viewer.scene.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    }
+  });
+
+  // Search
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('keydown', async e => {
+    if (e.key !== 'Enter') return;
+    const q = searchInput.value.trim(); if (!q) return;
+    const parts = q.split(',').map(s=>s.trim());
+    let flyLat, flyLon, label;
+    if (parts.length===2 && !isNaN(+parts[0]) && !isNaN(+parts[1])) {
+      flyLat=+parts[0]; flyLon=+parts[1]; label=`${flyLat.toFixed(4)}, ${flyLon.toFixed(4)}`;
+    } else {
+      searchInput.style.borderColor='#fc4';
+      try {
+        const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`);
+        const d=await r.json();
+        if(d.length>0){flyLat=+d[0].lat;flyLon=+d[0].lon;label=d[0].display_name.split(',').slice(0,3).join(',');}
+        else{searchInput.style.borderColor='#f66';setTimeout(()=>searchInput.style.borderColor='#555',1500);return;}
+      }catch(err){searchInput.style.borderColor='#f66';setTimeout(()=>searchInput.style.borderColor='#555',1500);return;}
+    }
+    if(flyLat!==undefined){
+      searchInput.value=label||`${flyLat.toFixed(6)}, ${flyLon.toFixed(6)}`;
+      searchInput.style.borderColor='#4c4';setTimeout(()=>searchInput.style.borderColor='#555',2000);
+      viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(flyLon,flyLat,300),
+        orientation:{heading:Cesium.Math.toRadians(-30),pitch:Cesium.Math.toRadians(-45),roll:0},duration:2});
+    }
+  });
+
+  // Toolbar
+  const slAz=document.getElementById('slAz'),lblAz=document.getElementById('lblAz');
+  slAz.addEventListener('input',()=>{azimuthDeg=+slAz.value;lblAz.textContent=azimuthDeg+'°';runRaytrace();});
+  const slH=document.getElementById('slHeight'),numH=document.getElementById('numHeight');
+  function setHeight(v){heightAGL=Math.max(0,Math.min(200,Math.round(v)));slH.value=Math.min(heightAGL,100);numH.value=heightAGL;runRaytrace();}
+  slH.addEventListener('input',()=>setHeight(+slH.value));
+  numH.addEventListener('change',()=>setHeight(+numH.value));
+  document.getElementById('btnHMinus').addEventListener('click',()=>setHeight(heightAGL-1));
+  document.getElementById('btnHPlus').addEventListener('click',()=>setHeight(heightAGL+1));
+
+  updateHUD();
+  console.log('Skyview raytrace viewer ready');
+}
+main().catch(e=>{console.error(e);document.getElementById('hud').textContent='Error: '+e.message;});
+</script>
+</body>
+</html>
