@@ -34,6 +34,7 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
   background: rgba(10,12,20,0.88); border-top: 1px solid #333;
   padding: 6px 10px; backdrop-filter: blur(6px);
   display: flex; flex-direction: column; align-items: center; gap: 5px;
+  touch-action: manipulation; /* prevent zoom/scroll on the bar */
 }
 #bottomBar .bar-row {
   display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px;
@@ -661,6 +662,12 @@ async function main() {
   // Trigger on first meaningful interaction
   document.addEventListener('click', requestFullscreen, { once: true });
   document.addEventListener('touchstart', requestFullscreen, { once: true });
+
+  // Prevent bottom bar from passing scroll/pinch to Cesium
+  const bar = document.getElementById('bottomBar');
+  bar.addEventListener('wheel', e => e.stopPropagation(), { passive: false });
+  bar.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+  bar.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
 
   console.log('Skyview raytrace viewer ready');
 }
