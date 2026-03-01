@@ -74,15 +74,6 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 }
 #bottomBar .row button:hover { background: #3a3d48; }
 
-/* Toggle button */
-#panelToggle {
-  position: fixed; top: 190px; right: 10px; z-index: 11;
-  width: 36px; height: 36px; border-radius: 8px; border: 1px solid #444;
-  background: rgba(10,12,20,0.88); color: #ccc; font-size: 18px;
-  cursor: pointer; display: none; align-items: center; justify-content: center;
-  backdrop-filter: blur(6px); transition: opacity 0.2s;
-}
-#panelToggle:hover { background: rgba(30,33,48,0.95); }
 
 /* Pin placement button */
 #pinBtn {
@@ -109,7 +100,6 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
   #polarFloat canvas { width: 120px; height: 120px; }
   #panel { max-width: 180px; right: 8px; top: 178px; padding: 6px 8px; }
   #panel .hud { font-size: 10px; }
-  #panelToggle { top: 178px; right: 8px; }
   #searchWrap { width: 200px; max-width: calc(100vw - 145px); left: 10px; transform: none; }
   #bottomBar { gap: 8px; padding: 6px 8px; }
   #bottomBar label { font-size: 10px; }
@@ -127,8 +117,6 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 <div id="polarFloat">
   <canvas id="polarCanvas" width="480" height="480"></canvas>
 </div>
-<!-- HUD details panel -->
-<button id="panelToggle">&#9776;</button>
 <div id="panel">
   <div class="hud" id="hud"></div>
 </div>
@@ -375,27 +363,16 @@ function drawPolarPlot(canvas, skyview, azimuthDeg) {
 async function main() {
   const hud = document.getElementById('hud');
   const panel = document.getElementById('panel');
-  const panelToggle = document.getElementById('panelToggle');
   const polarFloat = document.getElementById('polarFloat');
+  const bottomBar = document.getElementById('bottomBar');
   const ovCanvas = document.getElementById('overlay');
   const ovCtx = ovCanvas.getContext('2d');
 
-  // Panel state
-  let panelLocked = false; // user manually toggled
   let hasPoint = false;
 
-  const bottomBar = document.getElementById('bottomBar');
   function showPolar() { polarFloat.style.display = 'block'; bottomBar.style.display = 'flex'; }
-  function showPanel() { panel.classList.add('visible'); panel.classList.remove('hiding'); panelToggle.style.display = 'none'; }
-  function hidePanel() { panel.classList.remove('visible'); panel.classList.add('hiding'); if (hasPoint) panelToggle.style.display = 'flex'; }
-
-  panelToggle.addEventListener('click', () => {
-    if (panel.classList.contains('visible')) {
-      panelLocked = false; hidePanel();
-    } else {
-      panelLocked = true; showPanel();
-    }
-  });
+  function showPanel() { panel.classList.add('visible'); panel.classList.remove('hiding'); }
+  function hidePanel() { panel.classList.remove('visible'); panel.classList.add('hiding'); }
 
   function resizeOverlay() {
     ovCanvas.width = innerWidth * OV_DPR;
@@ -492,9 +469,8 @@ async function main() {
     updateHUD(dt);
   }
 
-  // Camera-idle overlay + panel auto-hide
+  // Camera-idle overlay
   let cameraIdleTimer = null;
-  let panelIdleTimer = null;
   let lastCameraPos = new Cesium.Cartesian3();
   const IDLE_DELAY = IS_MOBILE ? 200 : 100;
 
@@ -531,13 +507,6 @@ async function main() {
       drawPointMarker();
       if (cameraIdleTimer) clearTimeout(cameraIdleTimer);
       cameraIdleTimer = setTimeout(redrawOverlayNow, IDLE_DELAY);
-
-      // Auto-hide panel while navigating (unless user locked it)
-      if (!panelLocked && hasPoint) {
-        hidePanel();
-        if (panelIdleTimer) clearTimeout(panelIdleTimer);
-        panelIdleTimer = setTimeout(() => { if (hasPoint && !panelLocked) showPanel(); }, 500);
-      }
     }
   });
 
@@ -568,13 +537,10 @@ async function main() {
     ctCartesian = cart;
     ctCartographic = Cesium.Cartographic.fromCartesian(cart);
 
-    // First point placed — show polar + panel
     if (!hasPoint) {
       hasPoint = true;
-      panelLocked = false;
       showPolar();
     }
-    showPanel();
     runRaytrace();
   }
   // Right-click always works on desktop
@@ -588,11 +554,13 @@ async function main() {
     placementMode = true;
     pinBtn.classList.add('active');
     viewer.scene.canvas.style.cursor = 'crosshair';
+    if (hasPoint) showPanel();
   }
   function exitPlacementMode() {
     placementMode = false;
     pinBtn.classList.remove('active');
     viewer.scene.canvas.style.cursor = '';
+    hidePanel();
   }
 
   pinBtn.addEventListener('click', () => {
