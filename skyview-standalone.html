@@ -13,22 +13,6 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 #overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1; }
 
 
-/* Panel — HUD info only, slides in from right below polar */
-#panel {
-  position: fixed; top: 180px; right: 10px; z-index: 10;
-  background: rgba(10,12,20,0.88); border-radius: 10px; border: 1px solid #333;
-  padding: 8px 10px; max-width: 240px;
-  backdrop-filter: blur(6px);
-  transform: translateX(calc(100% + 20px));
-  transition: transform 0.25s ease-out, opacity 0.25s ease-out;
-  opacity: 0;
-}
-#panel.visible { transform: translateX(0); opacity: 1; }
-#panel.hiding { transform: translateX(calc(100% + 20px)); opacity: 0; }
-#panel .hud { color: #bbb; font-size: 11px; line-height: 1.6; }
-#panel .hud b { color: #fff; }
-#panel .hud .g { color: #4c4; } #panel .hud .r { color: #f66; }
-#panel .hud .y { color: #fc4; } #panel .hud .c { color: #4cc; }
 
 /* Floating polar plot — top-right, transparent */
 #polarFloat {
@@ -82,20 +66,13 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 }
 #bottomBar .row button:hover { background: #3a3d48; }
 #bottomBar .sep { width: 1px; height: 24px; background: #444; flex-shrink: 0; }
-/* Processing spinner */
-#spinner {
-  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 30;
-  display: none; align-items: center; gap: 10px;
-  background: rgba(10,12,20,0.85); padding: 12px 20px; border-radius: 10px;
-  border: 1px solid #444; backdrop-filter: blur(6px);
-  color: #ccc; font-size: 13px; font-family: system-ui, sans-serif;
+/* Processing state — pin button pulses */
+#bottomBar #pinBtn.processing {
+  background: rgba(255,180,40,0.85); border-color: #fc4; color: #fff;
+  animation: pinPulse 0.6s ease-in-out infinite alternate;
+  pointer-events: none;
 }
-#spinner.show { display: flex; }
-#spinner .dot {
-  width: 10px; height: 10px; border-radius: 50%; background: #4c4;
-  animation: pulse 0.8s ease-in-out infinite alternate;
-}
-@keyframes pulse { from { opacity: 0.3; transform: scale(0.8); } to { opacity: 1; transform: scale(1.2); } }
+@keyframes pinPulse { from { opacity: 0.6; } to { opacity: 1; } }
 
 .cesium-viewer-toolbar, .cesium-viewer-animationContainer,
 .cesium-viewer-timelineContainer, .cesium-viewer-bottom,
@@ -104,8 +81,6 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 @media (max-width: 600px) {
   #polarFloat { width: 120px; height: 120px; top: 10px; right: 8px; }
   #polarFloat canvas { width: 120px; height: 120px; }
-  #panel { max-width: 180px; right: 8px; top: 140px; padding: 6px 8px; }
-  #panel .hud { font-size: 10px; }
   #bottomBar { gap: 5px; padding: 5px 6px; }
   #bottomBar #searchInput { width: 120px; padding: 5px 8px; font-size: 11px; }
   #bottomBar label { font-size: 10px; }
@@ -116,14 +91,10 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 <body>
 <div id="cesiumContainer"></div>
 <canvas id="overlay"></canvas>
-<div id="spinner"><div class="dot"></div>Analyzing skyview...</div>
 <!-- Polar plot — top-right after point placed -->
 <div id="polarFloat">
   <canvas id="polarCanvas" width="480" height="480"></canvas>
   <div id="polarLabel"></div>
-</div>
-<div id="panel">
-  <div class="hud" id="hud"></div>
 </div>
 <!-- Unified bottom bar -->
 <div id="bottomBar">
@@ -372,8 +343,6 @@ function drawPolarPlot(canvas, skyview, azimuthDeg) {
 // MAIN
 // ============================================================
 async function main() {
-  const hud = document.getElementById('hud');
-  const panel = document.getElementById('panel');
   const polarFloat = document.getElementById('polarFloat');
   const polarLabel = document.getElementById('polarLabel');
   const ovCanvas = document.getElementById('overlay');
@@ -382,8 +351,6 @@ async function main() {
   let hasPoint = false;
 
   function showPolar() { polarFloat.style.display = 'block'; }
-  function showPanel() { panel.classList.add('visible'); panel.classList.remove('hiding'); }
-  function hidePanel() { panel.classList.remove('visible'); panel.classList.add('hiding'); }
 
   function resizeOverlay() {
     ovCanvas.width = innerWidth * OV_DPR;
@@ -464,9 +431,8 @@ async function main() {
   let lastEnuTx = null;
   let raytraceQueued = false;
 
-  const spinner = document.getElementById('spinner');
-  function showSpinner() { spinner.classList.add('show'); }
-  function hideSpinner() { spinner.classList.remove('show'); }
+  function showSpinner() { document.getElementById('pinBtn').classList.add('processing'); }
+  function hideSpinner() { document.getElementById('pinBtn').classList.remove('processing'); }
 
   function runRaytrace() {
     if (!ctCartesian || raytraceQueued) return;
@@ -487,7 +453,6 @@ async function main() {
       drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, ctRaised, enuTx, skyview);
       drawPolarPlot(document.getElementById('polarCanvas'), skyview, azimuthDeg);
       updatePolarLabel();
-      updateHUD(dt);
       hideSpinner();
       raytraceQueued = false;
     }, 0); });
@@ -542,23 +507,6 @@ async function main() {
     }
   });
 
-  function updateHUD(ms) {
-    const lat = Cesium.Math.toDegrees(ctCartographic.latitude);
-    const lon = Cesium.Math.toDegrees(ctCartographic.longitude);
-    const lines = [
-      `<b>${lat.toFixed(4)}°N, ${Math.abs(lon).toFixed(4)}°W</b>`,
-      `ΔHeight: <span class="y">${heightAGL}m</span> above surface`,
-      `Pitch: <span class="y">${PITCH_DEG}°</span> | Azimuth: <span class="y">${azimuthDeg}°</span>`,
-      `Beam: ${BEAM_HALF_ANGLE_DEG}° half-angle (min elev ${MIN_ELEV_DEG}°) | Dome: ${DOME_R}m`
-    ];
-    if (skyview) {
-      const p = parseFloat(skyview.pct), cls = p>=90?'g':p>=70?'y':'r';
-      lines.push(`Skyview: <span class="${cls}">${skyview.pct}% clear</span> (${skyview.clear}/${skyview.total} in beam)`);
-      if (ms !== undefined) lines.push(`Raytrace: ${ms.toFixed(0)}ms`);
-    }
-    hud.innerHTML = lines.join('<br>');
-  }
-
   // ============================================================
   // INPUT
   // ============================================================
@@ -586,13 +534,11 @@ async function main() {
     placementMode = true;
     pinBtn.classList.add('active');
     viewer.scene.canvas.style.cursor = 'crosshair';
-    if (hasPoint) showPanel();
   }
   function exitPlacementMode() {
     placementMode = false;
     pinBtn.classList.remove('active');
     viewer.scene.canvas.style.cursor = '';
-    hidePanel();
   }
 
   pinBtn.addEventListener('click', () => {
@@ -715,7 +661,7 @@ async function main() {
 
   console.log('Skyview raytrace viewer ready');
 }
-main().catch(e=>{console.error(e);document.getElementById('hud').textContent='Error: '+e.message;});
+main().catch(e=>console.error(e));
 </script>
 </body>
 </html>
