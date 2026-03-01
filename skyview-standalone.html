@@ -111,7 +111,7 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
     <div class="sep"></div>
     <label>&Delta;H <span class="row">
       <button id="btnHMinus">&minus;</button>
-      <input type="number" id="numHeight" value="0" min="0" max="200" step="1" style="width:42px;text-align:center;">
+      <input type="number" id="numHeight" value="0" min="0" max="40" step="0.1" style="width:42px;text-align:center;">
       <button id="btnHPlus">+</button><span style="color:#666">m</span>
     </span></label>
   </div>
@@ -589,7 +589,13 @@ async function main() {
   document.getElementById('btnAzMinus').addEventListener('click',()=>setAzimuth(azimuthDeg-10));
   document.getElementById('btnAzPlus').addEventListener('click',()=>setAzimuth(azimuthDeg+10));
   const numH=document.getElementById('numHeight');
-  function setHeight(v){heightAGL=Math.max(0,Math.min(200,Math.round(v)));numH.value=heightAGL;runRaytrace();}
+  function setHeight(v){
+    if (v <= 0) { heightAGL = 0; }
+    else if (v >= 40) { heightAGL = 40; }
+    else { heightAGL = Math.round(v * 10) / 10; } // 0.1 precision
+    numH.value = heightAGL;
+    runRaytrace();
+  }
   numH.addEventListener('change',()=>setHeight(+numH.value));
   document.getElementById('btnHMinus').addEventListener('click',()=>setHeight(heightAGL-1));
   document.getElementById('btnHPlus').addEventListener('click',()=>setHeight(heightAGL+1));
