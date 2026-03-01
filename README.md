@@ -1,6 +1,6 @@
 # Skyview
 
-Antenna obstruction analyzer. Place an antenna anywhere on Earth and instantly see what portion of the sky is clear vs blocked by buildings and terrain.
+Sky visibility analyzer. Place a point anywhere on Earth and instantly see what portion of the sky is clear vs blocked by buildings and terrain.
 
 ## How it works
 
@@ -26,11 +26,11 @@ Antenna obstruction analyzer. Place an antenna anywhere on Earth and instantly s
 ### Raytrace pipeline
 
 ```
-  Right-click places antenna
+  Right-click places point
           │
           v
   ┌───────────────┐     Cast 72 x 15 rays into
-  │  Antenna pos  │────> hemisphere above antenna
+  │  Point pos    │────> hemisphere above point
   │  (lat/lon/h)  │     (azimuth x elevation grid)
   └───────────────┘
           │
@@ -65,7 +65,7 @@ Antenna obstruction analyzer. Place an antenna anywhere on Earth and instantly s
    ──────╱──┼──── min elevation 35°
         ╱   │
   ─────╱────┴──── horizon
-       antenna
+       point
 ```
 
 ## Usage
@@ -85,12 +85,12 @@ Then run `python3 serve.py` (opens browser automatically on `:8090`)
 
 | Input | Action |
 |---|---|
-| Right-click | Place antenna |
+| Right-click | Place point |
 | Drag | Orbit camera |
 | R | Reset camera |
 | Search bar | Fly to location (name or `lat, lon`) |
 | Azimuth slider | Rotate beam direction |
-| Height slider | Raise antenna above surface |
+| Height slider | Raise point above surface |
 
 ## Files
 

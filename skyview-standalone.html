@@ -51,7 +51,7 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 <canvas id="overlay"></canvas>
 <div id="panel">
   <input type="text" id="searchInput" placeholder="Search: 'Eiffel Tower' or '48.858, 2.294'" spellcheck="false">
-  <div class="hud" id="hud">Right-click to place antenna</div>
+  <div class="hud" id="hud">Right-click to place point</div>
   <label>Azimuth <input type="range" id="slAz" min="0" max="355" value="0" step="5"><span id="lblAz">0°</span></label>
   <label>ΔHeight <span class="row">
     <input type="range" id="slHeight" min="0" max="100" value="0" step="1">
@@ -61,7 +61,7 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
   </span></label>
   <div id="polarWrap"><canvas id="polarCanvas" width="480" height="480"></canvas></div>
 </div>
-<div id="controls">Right-click: place antenna | Drag: orbit | R: reset</div>
+<div id="controls">Right-click: place point | Drag: orbit | R: reset</div>
 <script>
 // ============================================================
 // SKYVIEW CONFIG
@@ -179,7 +179,7 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
   }
   ctx.strokeStyle = 'rgba(255,255,60,0.7)'; ctx.lineWidth = 2; ctx.stroke();
 
-  // Antenna marker
+  // Point marker
   const ctS = toScreen(ctCart);
   if (ctS) {
     ctx.beginPath(); ctx.arc(ctS[0],ctS[1],6*devicePixelRatio,0,Math.PI*2);
@@ -373,7 +373,7 @@ async function main() {
   });
 
   function updateHUD(ms) {
-    if (!ctCartographic) { hud.innerHTML = 'Right-click to place antenna'; return; }
+    if (!ctCartographic) { hud.innerHTML = 'Right-click to place point'; return; }
     const lat = Cesium.Math.toDegrees(ctCartographic.latitude);
     const lon = Cesium.Math.toDegrees(ctCartographic.longitude);
     const lines = [
