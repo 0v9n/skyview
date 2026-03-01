@@ -52,7 +52,12 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 <div id="panel">
   <input type="text" id="searchInput" placeholder="Search: 'Eiffel Tower' or '48.858, 2.294'" spellcheck="false">
   <div class="hud" id="hud">Right-click to place point</div>
-  <label>Azimuth <input type="range" id="slAz" min="0" max="355" value="0" step="5"><span id="lblAz">0°</span></label>
+  <label>Azimuth <span class="row">
+    <input type="range" id="slAz" min="0" max="355" value="0" step="5">
+    <button id="btnAzMinus">−</button>
+    <input type="number" id="numAz" value="0" min="0" max="355" step="10" style="width:45px;text-align:center;padding:2px;">
+    <button id="btnAzPlus">+</button><span style="color:#666">°</span>
+  </span></label>
   <label>ΔHeight <span class="row">
     <input type="range" id="slHeight" min="0" max="100" value="0" step="1">
     <button id="btnHMinus">−</button>
@@ -438,8 +443,12 @@ async function main() {
   });
 
   // Toolbar
-  const slAz=document.getElementById('slAz'),lblAz=document.getElementById('lblAz');
-  slAz.addEventListener('input',()=>{azimuthDeg=+slAz.value;lblAz.textContent=azimuthDeg+'°';runRaytrace();});
+  const slAz=document.getElementById('slAz'),numAz=document.getElementById('numAz');
+  function setAzimuth(v){azimuthDeg=((Math.round(v)%360)+360)%360;slAz.value=Math.min(azimuthDeg,355);numAz.value=azimuthDeg;runRaytrace();}
+  slAz.addEventListener('input',()=>setAzimuth(+slAz.value));
+  numAz.addEventListener('change',()=>setAzimuth(+numAz.value));
+  document.getElementById('btnAzMinus').addEventListener('click',()=>setAzimuth(azimuthDeg-10));
+  document.getElementById('btnAzPlus').addEventListener('click',()=>setAzimuth(azimuthDeg+10));
   const slH=document.getElementById('slHeight'),numH=document.getElementById('numHeight');
   function setHeight(v){heightAGL=Math.max(0,Math.min(200,Math.round(v)));slH.value=Math.min(heightAGL,100);numH.value=heightAGL;runRaytrace();}
   slH.addEventListener('input',()=>setHeight(+slH.value));
