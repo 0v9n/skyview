@@ -11,18 +11,36 @@
 body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 #cesiumContainer { width: 100vw; height: 100vh; }
 #overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1; }
+
+/* Search bar — always visible, top center */
+#searchWrap {
+  position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 20;
+  width: 320px; max-width: calc(100vw - 20px);
+}
+#searchInput {
+  width: 100%; background: rgba(10,12,20,0.88); color: #eee;
+  border: 1px solid #444; border-radius: 8px; padding: 8px 12px; font-size: 13px;
+  outline: none; backdrop-filter: blur(6px);
+}
+#searchInput:focus { border-color: #4c4; }
+#searchInput::placeholder { color: #666; }
+
+/* Panel — slides in from right */
 #panel {
   position: fixed; top: 10px; right: 10px; z-index: 10;
   background: rgba(10,12,20,0.88); border-radius: 10px; border: 1px solid #333;
   padding: 10px; width: 260px; display: flex; flex-direction: column; gap: 8px;
   backdrop-filter: blur(6px);
+  transform: translateX(calc(100% + 20px));
+  transition: transform 0.25s ease-out, opacity 0.25s ease-out;
+  opacity: 0;
 }
-#panel input[type=text], #panel input[type=number] {
+#panel.visible { transform: translateX(0); opacity: 1; }
+#panel.hiding { transform: translateX(calc(100% + 20px)); opacity: 0; }
+#panel input[type=number] {
   background: #1a1d28; color: #eee; border: 1px solid #444; border-radius: 5px;
-  padding: 6px 10px; font-size: 12px; outline: none; width: 100%;
+  padding: 4px 6px; font-size: 12px; outline: none;
 }
-#panel input[type=text]:focus { border-color: #4c4; }
-#panel input[type=text]::placeholder { color: #666; }
 #panel .hud { color: #bbb; font-size: 11px; line-height: 1.6; }
 #panel .hud b { color: #fff; }
 #panel .hud .g { color: #4c4; } #panel .hud .r { color: #f66; }
@@ -37,6 +55,17 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 #panel .row button:hover { background: #3a3d48; }
 #polarWrap { width: 240px; height: 240px; margin: 0 auto; }
 #polarCanvas { width: 240px; height: 240px; border-radius: 50%; }
+
+/* Toggle button */
+#panelToggle {
+  position: fixed; top: 10px; right: 10px; z-index: 11;
+  width: 36px; height: 36px; border-radius: 8px; border: 1px solid #444;
+  background: rgba(10,12,20,0.88); color: #ccc; font-size: 18px;
+  cursor: pointer; display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(6px); transition: opacity 0.2s;
+}
+#panelToggle:hover { background: rgba(30,33,48,0.95); }
+
 #controls {
   position: fixed; bottom: 10px; left: 10px;
   color: #777; font-size: 10px; background: rgba(0,0,0,0.5);
@@ -45,23 +74,36 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 .cesium-viewer-toolbar, .cesium-viewer-animationContainer,
 .cesium-viewer-timelineContainer, .cesium-viewer-bottom,
 .cesium-viewer-fullscreenContainer { display: none !important; }
+
+@media (max-width: 600px) {
+  #panel { width: calc(100vw - 20px); right: 10px; top: auto; bottom: 10px; border-radius: 10px;
+    transform: translateY(calc(100% + 20px)); max-height: 60vh; overflow-y: auto; }
+  #panel.visible { transform: translateY(0); }
+  #panel.hiding { transform: translateY(calc(100% + 20px)); }
+  #panelToggle { bottom: 10px; right: 10px; top: auto; }
+  #polarWrap { width: 180px; height: 180px; }
+  #polarCanvas { width: 180px; height: 180px; }
+}
 </style>
 </head>
 <body>
 <div id="cesiumContainer"></div>
 <canvas id="overlay"></canvas>
-<div id="panel">
+<div id="searchWrap">
   <input type="text" id="searchInput" placeholder="Search: 'Eiffel Tower' or '48.858, 2.294'" spellcheck="false">
-  <div class="hud" id="hud">Right-click to place point</div>
+</div>
+<button id="panelToggle">&#9776;</button>
+<div id="panel">
+  <div class="hud" id="hud"></div>
   <label>Azimuth <span class="row">
     <input type="range" id="slAz" min="0" max="355" value="0" step="5">
-    <button id="btnAzMinus">−</button>
+    <button id="btnAzMinus">&minus;</button>
     <input type="number" id="numAz" value="0" min="0" max="355" step="10" style="width:45px;text-align:center;padding:2px;">
-    <button id="btnAzPlus">+</button><span style="color:#666">°</span>
+    <button id="btnAzPlus">+</button><span style="color:#666">&deg;</span>
   </span></label>
-  <label>ΔHeight <span class="row">
+  <label>&Delta;Height <span class="row">
     <input type="range" id="slHeight" min="0" max="100" value="0" step="1">
-    <button id="btnHMinus">−</button>
+    <button id="btnHMinus">&minus;</button>
     <input type="number" id="numHeight" value="0" min="0" max="200" step="1" style="width:40px;text-align:center;padding:2px;">
     <button id="btnHPlus">+</button><span style="color:#666">m</span>
   </span></label>
@@ -73,7 +115,7 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 // PLATFORM DETECTION
 // ============================================================
 const IS_MOBILE = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && innerWidth < 1024);
-const OV_DPR = IS_MOBILE ? 1 : devicePixelRatio;  // cap overlay canvas resolution on mobile
+const OV_DPR = IS_MOBILE ? 1 : devicePixelRatio;
 
 // ============================================================
 // SKYVIEW CONFIG
@@ -87,7 +129,7 @@ function beamAxis(pitchDeg, azDeg) {
 }
 
 // ============================================================
-// RAYTRACE — uses Cesium pickFromRay, no custom geometry in scene
+// RAYTRACE
 // ============================================================
 function computeSkyview(viewer, ctCart, enuTx, pitchDeg, azDeg) {
   const minEl = MIN_ELEV_DEG*Math.PI/180, maxEl = Math.PI/2;
@@ -123,8 +165,7 @@ function computeSkyview(viewer, ctCart, enuTx, pitchDeg, azDeg) {
 }
 
 // ============================================================
-// DOME OVERLAY — drawn on 2D canvas, NOT in Cesium scene
-// Pre-allocated scratch objects to avoid GC pressure
+// DOME OVERLAY — pre-allocated scratch objects
 // ============================================================
 const _scratchC3 = new Cesium.Cartesian3();
 const _scratchP  = new Cesium.Cartesian3();
@@ -144,7 +185,6 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
     return sp ? [sp.x * OV_DPR, sp.y * OV_DPR] : null;
   }
 
-  // Draw dome cells — batch by fill color to reduce state changes
   const redCells = [], greenCells = [];
   for (let ai=0; ai<AZ_N; ai++) {
     for (let ei=0; ei<EL_N-1; ei++) {
@@ -173,7 +213,6 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
     }
   }
 
-  // Batch draw — two fill passes instead of hundreds of state changes
   ctx.fillStyle = 'rgba(220,30,20,0.35)';
   ctx.beginPath();
   for (const p of redCells) { ctx.moveTo(p[0],p[1]); ctx.lineTo(p[2],p[3]); ctx.lineTo(p[4],p[5]); ctx.lineTo(p[6],p[7]); ctx.closePath(); }
@@ -184,7 +223,6 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
   for (const p of greenCells) { ctx.moveTo(p[0],p[1]); ctx.lineTo(p[2],p[3]); ctx.lineTo(p[4],p[5]); ctx.lineTo(p[6],p[7]); ctx.closePath(); }
   ctx.fill();
 
-  // Obstructed ray lines — single batched path
   ctx.beginPath();
   for (const row of skyview.results) {
     for (const r of row) {
@@ -199,7 +237,6 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
   }
   ctx.strokeStyle = 'rgba(255,60,40,0.2)'; ctx.lineWidth = 1; ctx.stroke();
 
-  // Elevation ring
   ctx.beginPath();
   const elRad = MIN_ELEV_DEG*Math.PI/180;
   for (let i=0; i<=72; i++) {
@@ -212,7 +249,6 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
   }
   ctx.strokeStyle = 'rgba(255,255,60,0.7)'; ctx.lineWidth = 2; ctx.stroke();
 
-  // Point marker
   const ctS = toScreen(ctCart);
   if (ctS) {
     ctx.beginPath(); ctx.arc(ctS[0],ctS[1],6*OV_DPR,0,Math.PI*2);
@@ -220,7 +256,6 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
     ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
   }
 
-  // Beam axis
   Cesium.Cartesian3.normalize(beamAxis(PITCH_DEG, skyview._azDeg||0), _scratchN2);
   Cesium.Cartesian3.multiplyByScalar(_scratchN2, DOME_R*0.7, _scratchN2);
   Cesium.Matrix4.multiplyByPoint(enuTx, _scratchN2, _scratchP);
@@ -232,7 +267,7 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
 }
 
 // ============================================================
-// 2D POLAR PLOT — skyview obstruction map
+// 2D POLAR PLOT
 // ============================================================
 function drawPolarPlot(canvas, skyview, azimuthDeg) {
   const ctx = canvas.getContext('2d');
@@ -240,7 +275,6 @@ function drawPolarPlot(canvas, skyview, azimuthDeg) {
   const cx = w/2, cy = h/2, r = w/2 - 20;
   ctx.clearRect(0, 0, w, h);
 
-  // Background
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
   ctx.fillStyle = '#1a1d28'; ctx.fill();
 
@@ -251,72 +285,43 @@ function drawPolarPlot(canvas, skyview, azimuthDeg) {
   }
 
   const minEl = MIN_ELEV_DEG * Math.PI / 180, maxEl = Math.PI / 2;
-
-  // Draw cells — top-down orthographic projection of dome hemisphere
-  // At azimuth az, elevation el: horizontal distance from center = cos(el)
-  // Normalized so el=minElev maps to edge (r), el=90° maps to center (0)
   const cosMin = Math.cos(minEl);
 
   for (let ai = 0; ai < AZ_N; ai++) {
     for (let ei = 0; ei < EL_N - 1; ei++) {
       const cell = skyview.results[ai][ei];
-
       const az0 = (ai/AZ_N)*2*Math.PI, az1 = ((ai+1)/AZ_N)*2*Math.PI;
       const el0 = minEl + (ei/(EL_N-1))*(maxEl-minEl);
       const el1 = minEl + ((ei+1)/(EL_N-1))*(maxEl-minEl);
-
-      // Orthographic radius: cos(el) / cos(minEl), so edge=1, zenith≈0
       const d0 = r * Math.cos(el0) / cosMin;
       const d1 = r * Math.cos(el1) / cosMin;
-
-      // Canvas angle: az=0 → North → top of circle → canvas angle -π/2
-      const ca0 = az0 - Math.PI/2;
-      const ca1 = az1 - Math.PI/2;
+      const ca0 = az0 - Math.PI/2, ca1 = az1 - Math.PI/2;
 
       ctx.beginPath();
       ctx.arc(cx, cy, d0, ca0, ca1, false);
       ctx.arc(cx, cy, d1, ca1, ca0, true);
       ctx.closePath();
-
-      if (!cell.inside) {
-        ctx.fillStyle = 'rgba(40,40,50,0.3)';
-      } else if (cell.hit) {
-        ctx.fillStyle = 'rgba(220,40,30,0.75)';
-      } else {
-        ctx.fillStyle = 'rgba(30,180,60,0.55)';
-      }
+      ctx.fillStyle = !cell.inside ? 'rgba(40,40,50,0.3)' : cell.hit ? 'rgba(220,40,30,0.75)' : 'rgba(30,180,60,0.55)';
       ctx.fill();
     }
   }
 
-  // Grid rings
   ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 0.5;
-  for (let i = 1; i <= 4; i++) {
-    ctx.beginPath(); ctx.arc(cx, cy, r*i/4, 0, Math.PI*2); ctx.stroke();
-  }
+  for (let i = 1; i <= 4; i++) { ctx.beginPath(); ctx.arc(cx, cy, r*i/4, 0, Math.PI*2); ctx.stroke(); }
 
-  // Cardinal labels
   ctx.fillStyle = '#aaa'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
-  ctx.fillText('N', cx, cy - r - 5);
-  ctx.fillText('S', cx, cy + r + 13);
-  ctx.fillText('E', cx + r + 10, cy + 4);
-  ctx.fillText('W', cx - r - 10, cy + 4);
+  ctx.fillText('N', cx, cy - r - 5); ctx.fillText('S', cx, cy + r + 13);
+  ctx.fillText('E', cx + r + 10, cy + 4); ctx.fillText('W', cx - r - 10, cy + 4);
 
-  // Beam axis indicator
-  const axAz = azimuthDeg * Math.PI / 180;
-  const axA = axAz - Math.PI/2; // same convention as cells
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
+  const axAz = azimuthDeg * Math.PI / 180, axA = axAz - Math.PI/2;
+  ctx.beginPath(); ctx.moveTo(cx, cy);
   ctx.lineTo(cx + r*0.7*Math.cos(axA), cy + r*0.7*Math.sin(axA));
   ctx.strokeStyle = 'rgba(255,220,40,0.8)'; ctx.lineWidth = 2; ctx.stroke();
 
-  // Center dot
   ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2);
   ctx.fillStyle = 'cyan'; ctx.fill();
 
-  // Skyview percentage
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 13px system-ui';
-  ctx.textAlign = 'center';
+  ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'center';
   const p = parseFloat(skyview.pct);
   ctx.fillStyle = p >= 90 ? '#4c4' : p >= 70 ? '#fc4' : '#f66';
   ctx.fillText(`${skyview.pct}% clear`, cx, cy + r + 28);
@@ -327,8 +332,25 @@ function drawPolarPlot(canvas, skyview, azimuthDeg) {
 // ============================================================
 async function main() {
   const hud = document.getElementById('hud');
+  const panel = document.getElementById('panel');
+  const panelToggle = document.getElementById('panelToggle');
   const ovCanvas = document.getElementById('overlay');
   const ovCtx = ovCanvas.getContext('2d');
+
+  // Panel state
+  let panelLocked = false; // user manually toggled
+  let hasPoint = false;
+
+  function showPanel() { panel.classList.add('visible'); panel.classList.remove('hiding'); panelToggle.style.display = 'none'; }
+  function hidePanel() { panel.classList.remove('visible'); panel.classList.add('hiding'); if (hasPoint) panelToggle.style.display = 'flex'; }
+
+  panelToggle.addEventListener('click', () => {
+    if (panel.classList.contains('visible')) {
+      panelLocked = false; hidePanel();
+    } else {
+      panelLocked = true; showPanel();
+    }
+  });
 
   function resizeOverlay() {
     ovCanvas.width = innerWidth * OV_DPR;
@@ -339,9 +361,9 @@ async function main() {
   resizeOverlay();
   window.addEventListener('resize', resizeOverlay);
 
-  const scene = { api_key: 'AIzaSyCWHeBH9emavlGBH9c-yXHIKT_CCDDJH4A', lat: 47.6695, lon: -122.1055 };
+  const sceneConfig = { api_key: 'AIzaSyCWHeBH9emavlGBH9c-yXHIKT_CCDDJH4A', lat: 47.6695, lon: -122.1055 };
 
-  Cesium.GoogleMaps.defaultApiKey = scene.api_key;
+  Cesium.GoogleMaps.defaultApiKey = sceneConfig.api_key;
   Cesium.RequestScheduler.requestsByServer["tile.googleapis.com:443"] = IS_MOBILE ? 6 : 18;
 
   const viewer = new Cesium.Viewer('cesiumContainer', {
@@ -367,32 +389,40 @@ async function main() {
     viewer.scene.globe && (viewer.scene.globe.tileCacheSize = 50);
   }
 
-  // Camera controller — match Google Earth feel
+  // Camera controller — Google Earth feel
   const cc = viewer.scene.screenSpaceCameraController;
-  cc.inertiaSpin = 0.9;             // high orbit momentum (GE-like glide)
-  cc.inertiaTranslate = 0.9;       // high pan momentum
-  cc.inertiaZoom = 0.8;            // smooth zoom deceleration
-  cc.minimumZoomDistance = 5;       // allow close zoom (street level)
-  cc.maximumZoomDistance = 50000;   // cap far zoom
+  cc.inertiaSpin = 0.9;
+  cc.inertiaTranslate = 0.9;
+  cc.inertiaZoom = 0.8;
+  cc.minimumZoomDistance = 5;
+  cc.maximumZoomDistance = 50000;
   cc.enableCollisionDetection = true;
+  cc._zoomFactor = 5;  // faster zoom for both desktop scroll + mobile pinch
+
+  // Altitude-proportional zoom — override default handler
+  const origZoomFn = cc._zoomFactor;
+  viewer.scene.preRender.addEventListener(() => {
+    const height = viewer.scene.camera.positionCartographic?.height || 1000;
+    cc._zoomFactor = Math.max(2, Math.min(20, height / 100));
+  });
+
   if (IS_MOBILE) {
     cc.zoomEventTypes = [Cesium.CameraEventType.PINCH];
     cc.tiltEventTypes = [{ eventType: Cesium.CameraEventType.PINCH, modifier: undefined }];
     cc.rotateEventTypes = [Cesium.CameraEventType.LEFT_DRAG];
-    cc._zoomFactor = 3;             // faster pinch zoom response
   }
 
   try {
     const tileset = await Cesium.createGooglePhotorealistic3DTileset();
     if (IS_MOBILE) {
-      tileset.maximumScreenSpaceError = 24;   // default 16, higher = less detail = less memory
-      tileset.maximumMemoryUsage = 256;        // MB, default 512
+      tileset.maximumScreenSpaceError = 24;
+      tileset.maximumMemoryUsage = 256;
     }
     viewer.scene.primitives.add(tileset);
   } catch(e) { console.warn('Google 3D tiles failed:', e); }
 
   // Camera
-  const initCart = Cesium.Cartesian3.fromDegrees(scene.lon, scene.lat, 50);
+  const initCart = Cesium.Cartesian3.fromDegrees(sceneConfig.lon, sceneConfig.lat, 50);
   const initTx = Cesium.Transforms.eastNorthUpToFixedFrame(initCart);
   viewer.scene.camera.lookAtTransform(initTx,
     new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30), Cesium.Math.toRadians(-25), 200));
@@ -401,7 +431,7 @@ async function main() {
   // State
   let ctCartesian = null, ctCartographic = null;
   let azimuthDeg = 0, skyview = null, heightAGL = 0;
-  let lastEnuTx = null; // for overlay redraw on camera move
+  let lastEnuTx = null;
 
   function runRaytrace() {
     if (!ctCartesian) return;
@@ -420,10 +450,11 @@ async function main() {
     updateHUD(dt);
   }
 
-  // Camera-idle overlay: hide during movement for smooth orbiting, redraw when idle
+  // Camera-idle overlay + panel auto-hide
   let cameraIdleTimer = null;
+  let panelIdleTimer = null;
   let lastCameraPos = new Cesium.Cartesian3();
-  const IDLE_DELAY = IS_MOBILE ? 200 : 100; // ms after camera stops moving
+  const IDLE_DELAY = IS_MOBILE ? 200 : 100;
 
   function redrawOverlayNow() {
     if (!skyview || !ctCartesian || !lastEnuTx) return;
@@ -440,19 +471,23 @@ async function main() {
     Cesium.Cartesian3.clone(camPos, lastCameraPos);
 
     if (moved) {
-      // Camera is moving — hide overlay for smooth rendering
       ovCanvas.style.opacity = '0';
       ovCtx.clearRect(0, 0, ovCanvas.width, ovCanvas.height);
       if (cameraIdleTimer) clearTimeout(cameraIdleTimer);
       cameraIdleTimer = setTimeout(redrawOverlayNow, IDLE_DELAY);
+
+      // Auto-hide panel while navigating (unless user locked it)
+      if (!panelLocked && hasPoint) {
+        hidePanel();
+        if (panelIdleTimer) clearTimeout(panelIdleTimer);
+        panelIdleTimer = setTimeout(() => { if (hasPoint && !panelLocked) showPanel(); }, 500);
+      }
     }
   });
 
-  // Smooth fade transition for the overlay
   ovCanvas.style.transition = 'opacity 0.15s ease-out';
 
   function updateHUD(ms) {
-    if (!ctCartographic) { hud.innerHTML = 'Right-click to place point'; return; }
     const lat = Cesium.Math.toDegrees(ctCartographic.latitude);
     const lon = Cesium.Math.toDegrees(ctCartographic.longitude);
     const lines = [
@@ -478,11 +513,18 @@ async function main() {
     if (!cart) return;
     ctCartesian = cart;
     ctCartographic = Cesium.Cartographic.fromCartesian(cart);
+
+    // First point placed — show panel
+    if (!hasPoint) {
+      hasPoint = true;
+      panelLocked = false;
+    }
+    showPanel();
     runRaytrace();
   }
   handler.setInputAction(function(click) { placePoint(click.position); }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
-  // Long-press on mobile (500ms hold)
+  // Long-press on mobile
   if (IS_MOBILE) {
     let lpTimer = null, lpPos = null;
     const cesiumCanvas = viewer.scene.canvas;
@@ -497,7 +539,7 @@ async function main() {
     cesiumCanvas.addEventListener('touchmove', e => {
       if (!lpTimer || !lpPos) return;
       const dx = e.touches[0].clientX - lpPos.x, dy = e.touches[0].clientY - lpPos.y;
-      if (dx*dx + dy*dy > 100) { clearTimeout(lpTimer); lpTimer = null; } // moved too far, cancel
+      if (dx*dx + dy*dy > 100) { clearTimeout(lpTimer); lpTimer = null; }
     }, { passive: true });
     cesiumCanvas.addEventListener('touchend', () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } }, { passive: true });
     cesiumCanvas.addEventListener('touchcancel', () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } }, { passive: true });
@@ -517,7 +559,7 @@ async function main() {
   // Controls hint
   document.getElementById('controls').textContent = IS_MOBILE
     ? 'Long-press: place point | Pinch: zoom | Drag: orbit'
-    : 'Right-click: place point | Drag: orbit | R: reset';
+    : 'Right-click: place point | Scroll: zoom | Drag: orbit | R: reset';
 
   // Search
   const searchInput = document.getElementById('searchInput');
@@ -540,6 +582,7 @@ async function main() {
     if(flyLat!==undefined){
       searchInput.value=label||`${flyLat.toFixed(6)}, ${flyLon.toFixed(6)}`;
       searchInput.style.borderColor='#4c4';setTimeout(()=>searchInput.style.borderColor='#555',2000);
+      searchInput.blur();
       viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(flyLon,flyLat,300),
         orientation:{heading:Cesium.Math.toRadians(-30),pitch:Cesium.Math.toRadians(-45),roll:0},duration:2});
     }
@@ -559,7 +602,6 @@ async function main() {
   document.getElementById('btnHMinus').addEventListener('click',()=>setHeight(heightAGL-1));
   document.getElementById('btnHPlus').addEventListener('click',()=>setHeight(heightAGL+1));
 
-  updateHUD();
   console.log('Skyview raytrace viewer ready');
 }
 main().catch(e=>{console.error(e);document.getElementById('hud').textContent='Error: '+e.message;});
