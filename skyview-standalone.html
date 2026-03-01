@@ -14,31 +14,31 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 
 
 
-/* Floating polar plot — top-right, transparent */
+/* Floating polar plot — top-right quadrant, constrained to 2x2 grid */
 #polarFloat {
   position: fixed; top: 10px; right: 10px; z-index: 9;
-  width: 140px; height: 140px;
+  width: min(45vw, 45vh); height: min(45vw, 45vh);
+  max-width: 280px; max-height: 280px;
   display: none; /* shown after first point */
   transition: opacity 0.2s ease-out;
 }
-#polarFloat canvas { width: 140px; height: 140px; border-radius: 50%; display: block; cursor: crosshair; touch-action: none; }
+#polarFloat canvas { width: 100%; height: auto; aspect-ratio: 1; border-radius: 50%; display: block; cursor: crosshair; touch-action: none; }
 #polarLabel {
   color: #ccc; font-size: 10px; text-align: center; margin-top: 2px;
   text-shadow: 0 1px 3px rgba(0,0,0,0.8);
   white-space: nowrap;
 }
 
-/* Unified bottom bar: search + pin + controls */
+/* Bottom bar: compact, centered */
 #bottomBar {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 15;
-  background: rgba(10,12,20,0.88); border-top: 1px solid #333;
-  padding: 6px 10px; backdrop-filter: blur(6px);
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
-  touch-action: manipulation; /* prevent zoom/scroll on the bar */
+  position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 15;
+  background: rgba(10,12,20,0.88); border: 1px solid #333; border-radius: 10px;
+  padding: 6px 12px; backdrop-filter: blur(6px);
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  touch-action: manipulation;
 }
 #bottomBar .bar-row {
   display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px;
-  width: 100%; max-width: 480px;
 }
 #bottomBar #searchInput {
   background: #1a1d28; color: #eee; border: 1px solid #444; border-radius: 6px;
@@ -80,10 +80,9 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 .cesium-viewer-fullscreenContainer { display: none !important; }
 
 @media (max-width: 600px) {
-  #polarFloat { width: 120px; height: 120px; top: 10px; right: 8px; }
-  #polarFloat canvas { width: 120px; height: 120px; }
-  #bottomBar { gap: 5px; padding: 5px 6px; }
-  #bottomBar #searchInput { width: 120px; padding: 5px 8px; font-size: 11px; }
+  #polarFloat { top: 8px; right: 8px; }
+  #bottomBar { padding: 5px 8px; gap: 3px; }
+  #bottomBar #searchInput { width: 110px; padding: 5px 8px; font-size: 11px; }
   #bottomBar label { font-size: 10px; }
   #bottomBar #pinBtn { width: 32px; height: 32px; font-size: 16px; }
 }
@@ -528,8 +527,10 @@ async function main() {
     }
     runRaytrace();
   }
-  // Right-click always works on desktop
+  // Right-click places point on desktop (no placement mode needed)
   handler.setInputAction(function(click) { placePoint(click.position); }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+  // Prevent browser context menu from stealing right-click
+  viewer.scene.canvas.addEventListener('contextmenu', e => e.preventDefault());
 
   // Pin button — tap to enter placement mode, next click/tap places point
   const pinBtn = document.getElementById('pinBtn');
