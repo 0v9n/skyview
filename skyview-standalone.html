@@ -384,6 +384,7 @@ async function main() {
   viewer.scene.moon.show = false;
   viewer.scene.skyBox.show = false;
   viewer.scene.skyAtmosphere.show = true;
+  viewer.scene.useDepthPicking = true;
 
   if (IS_MOBILE) {
     viewer.scene.fog.enabled = false;
@@ -412,10 +413,6 @@ async function main() {
 
   try {
     const tileset = await Cesium.createGooglePhotorealistic3DTileset();
-    if (IS_MOBILE) {
-      tileset.maximumScreenSpaceError = 16;  // keep default for accurate picking
-      tileset.maximumMemoryUsage = 384;      // moderate memory cap
-    }
     viewer.scene.primitives.add(tileset);
   } catch(e) { console.warn('Google 3D tiles failed:', e); }
 
@@ -650,21 +647,6 @@ async function main() {
   polarCanvas.addEventListener('mousedown', onPolarStart);
   window.addEventListener('mousemove', onPolarMove);
   window.addEventListener('mouseup', onPolarEnd);
-
-  // ============================================================
-  // FULLSCREEN — request on first user interaction
-  // ============================================================
-  let fullscreenRequested = false;
-  function requestFullscreen() {
-    if (fullscreenRequested || document.fullscreenElement) return;
-    fullscreenRequested = true;
-    const el = document.documentElement;
-    const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-    if (rfs) rfs.call(el).catch(() => {});
-  }
-  // Trigger on first meaningful interaction
-  document.addEventListener('click', requestFullscreen, { once: true });
-  document.addEventListener('touchstart', requestFullscreen, { once: true });
 
   // Prevent bottom bar from passing scroll/pinch to Cesium
   const bar = document.getElementById('bottomBar');
