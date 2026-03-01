@@ -2,7 +2,8 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Skyview — Obstruction Analyzer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Skyview</title>
 <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
 <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
 <style>
@@ -66,8 +67,14 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
   </span></label>
   <div id="polarWrap"><canvas id="polarCanvas" width="480" height="480"></canvas></div>
 </div>
-<div id="controls">Right-click: place point | Drag: orbit | R: reset</div>
+<div id="controls"></div>
 <script>
+// ============================================================
+// PLATFORM DETECTION
+// ============================================================
+const IS_MOBILE = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && innerWidth < 1024);
+const OV_DPR = IS_MOBILE ? 1 : devicePixelRatio;  // cap overlay canvas resolution on mobile
+
 // ============================================================
 // SKYVIEW CONFIG
 // ============================================================
@@ -127,7 +134,7 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
   // Project a world point to screen
   function toScreen(worldPos) {
     const sp = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, worldPos);
-    return sp ? [sp.x * devicePixelRatio, sp.y * devicePixelRatio] : null;
+    return sp ? [sp.x * OV_DPR, sp.y * OV_DPR] : null;
   }
 
   // Draw dome cells
@@ -187,7 +194,7 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
   // Point marker
   const ctS = toScreen(ctCart);
   if (ctS) {
-    ctx.beginPath(); ctx.arc(ctS[0],ctS[1],6*devicePixelRatio,0,Math.PI*2);
+    ctx.beginPath(); ctx.arc(ctS[0],ctS[1],6*OV_DPR,0,Math.PI*2);
     ctx.fillStyle = 'cyan'; ctx.fill();
     ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
   }
@@ -304,8 +311,8 @@ async function main() {
   const ovCtx = ovCanvas.getContext('2d');
 
   function resizeOverlay() {
-    ovCanvas.width = innerWidth * devicePixelRatio;
-    ovCanvas.height = innerHeight * devicePixelRatio;
+    ovCanvas.width = innerWidth * OV_DPR;
+    ovCanvas.height = innerHeight * OV_DPR;
     ovCanvas.style.width = innerWidth + 'px';
     ovCanvas.style.height = innerHeight + 'px';
   }
@@ -315,7 +322,7 @@ async function main() {
   const scene = { api_key: 'AIzaSyCWHeBH9emavlGBH9c-yXHIKT_CCDDJH4A', lat: 47.6695, lon: -122.1055 };
 
   Cesium.GoogleMaps.defaultApiKey = scene.api_key;
-  Cesium.RequestScheduler.requestsByServer["tile.googleapis.com:443"] = 18;
+  Cesium.RequestScheduler.requestsByServer["tile.googleapis.com:443"] = IS_MOBILE ? 6 : 18;
 
   const viewer = new Cesium.Viewer('cesiumContainer', {
     imageryProvider: false, globe: false,
@@ -334,8 +341,20 @@ async function main() {
   viewer.scene.skyBox.show = false;
   viewer.scene.skyAtmosphere.show = true;
 
+  if (IS_MOBILE) {
+    viewer.resolutionScale = 0.75;             // render at 75% resolution
+    viewer.scene.fog.enabled = false;
+    viewer.scene.globe && (viewer.scene.globe.tileCacheSize = 50);
+    viewer.scene.requestRenderMode = true;     // only render when something changes
+    viewer.scene.maximumRenderTimeChange = 0.1;
+  }
+
   try {
     const tileset = await Cesium.createGooglePhotorealistic3DTileset();
+    if (IS_MOBILE) {
+      tileset.maximumScreenSpaceError = 24;   // default 16, higher = less detail = less memory
+      tileset.maximumMemoryUsage = 256;        // MB, default 512
+    }
     viewer.scene.primitives.add(tileset);
   } catch(e) { console.warn('Google 3D tiles failed:', e); }
 
@@ -369,8 +388,12 @@ async function main() {
   }
 
   // Redraw overlay when camera moves (no re-raytrace, just re-project)
+  let overlayFrame = 0;
+  const OVERLAY_SKIP = IS_MOBILE ? 3 : 0; // on mobile, redraw every 4th frame
   viewer.scene.postRender.addEventListener(() => {
     if (skyview && ctCartesian && lastEnuTx) {
+      if (++overlayFrame <= OVERLAY_SKIP) return;
+      overlayFrame = 0;
       const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
       const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + heightAGL);
       drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, ctRaised, lastEnuTx, skyview);
@@ -399,22 +422,51 @@ async function main() {
   // INPUT
   // ============================================================
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-  handler.setInputAction(function(click) {
-    const cart = viewer.scene.pickPosition(click.position);
+  function placePoint(pos) {
+    const cart = viewer.scene.pickPosition(pos);
     if (!cart) return;
     ctCartesian = cart;
     ctCartographic = Cesium.Cartographic.fromCartesian(cart);
     runRaytrace();
-  }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+  }
+  handler.setInputAction(function(click) { placePoint(click.position); }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+
+  // Long-press on mobile (500ms hold)
+  if (IS_MOBILE) {
+    let lpTimer = null, lpPos = null;
+    const cesiumCanvas = viewer.scene.canvas;
+    cesiumCanvas.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      lpPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lpTimer = setTimeout(() => {
+        if (lpPos) placePoint(new Cesium.Cartesian2(lpPos.x, lpPos.y));
+        lpTimer = null;
+      }, 500);
+    }, { passive: true });
+    cesiumCanvas.addEventListener('touchmove', e => {
+      if (!lpTimer || !lpPos) return;
+      const dx = e.touches[0].clientX - lpPos.x, dy = e.touches[0].clientY - lpPos.y;
+      if (dx*dx + dy*dy > 100) { clearTimeout(lpTimer); lpTimer = null; } // moved too far, cancel
+    }, { passive: true });
+    cesiumCanvas.addEventListener('touchend', () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } }, { passive: true });
+    cesiumCanvas.addEventListener('touchcancel', () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } }, { passive: true });
+  }
+
+  function resetCamera() {
+    viewer.scene.camera.lookAtTransform(initTx,
+      new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30),Cesium.Math.toRadians(-25),200));
+    viewer.scene.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  }
 
   window.addEventListener('keydown', e => {
     if (document.activeElement === document.getElementById('searchInput')) return;
-    if (e.key==='r'||e.key==='R') {
-      viewer.scene.camera.lookAtTransform(initTx,
-        new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30),Cesium.Math.toRadians(-25),200));
-      viewer.scene.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-    }
+    if (e.key==='r'||e.key==='R') resetCamera();
   });
+
+  // Controls hint
+  document.getElementById('controls').textContent = IS_MOBILE
+    ? 'Long-press: place point | Pinch: zoom | Drag: orbit'
+    : 'Right-click: place point | Drag: orbit | R: reset';
 
   // Search
   const searchInput = document.getElementById('searchInput');
