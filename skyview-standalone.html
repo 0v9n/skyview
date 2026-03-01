@@ -82,6 +82,21 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 }
 #bottomBar .row button:hover { background: #3a3d48; }
 #bottomBar .sep { width: 1px; height: 24px; background: #444; flex-shrink: 0; }
+/* Processing spinner */
+#spinner {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 30;
+  display: none; align-items: center; gap: 10px;
+  background: rgba(10,12,20,0.85); padding: 12px 20px; border-radius: 10px;
+  border: 1px solid #444; backdrop-filter: blur(6px);
+  color: #ccc; font-size: 13px; font-family: system-ui, sans-serif;
+}
+#spinner.show { display: flex; }
+#spinner .dot {
+  width: 10px; height: 10px; border-radius: 50%; background: #4c4;
+  animation: pulse 0.8s ease-in-out infinite alternate;
+}
+@keyframes pulse { from { opacity: 0.3; transform: scale(0.8); } to { opacity: 1; transform: scale(1.2); } }
+
 .cesium-viewer-toolbar, .cesium-viewer-animationContainer,
 .cesium-viewer-timelineContainer, .cesium-viewer-bottom,
 .cesium-viewer-fullscreenContainer { display: none !important; }
@@ -101,6 +116,7 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 <body>
 <div id="cesiumContainer"></div>
 <canvas id="overlay"></canvas>
+<div id="spinner"><div class="dot"></div>Analyzing skyview...</div>
 <!-- Polar plot — top-right after point placed -->
 <div id="polarFloat">
   <canvas id="polarCanvas" width="480" height="480"></canvas>
@@ -139,7 +155,8 @@ const OV_DPR = IS_MOBILE ? 1 : devicePixelRatio;
 // ============================================================
 // SKYVIEW CONFIG
 // ============================================================
-const MIN_ELEV_DEG = 35, DOME_R = 5, RAY_RANGE = 100, AZ_N = 72, EL_N = 15;
+const MIN_ELEV_DEG = 35, DOME_R = 5, RAY_RANGE = 100;
+const AZ_N = IS_MOBILE ? 36 : 72, EL_N = IS_MOBILE ? 10 : 15;
 const BEAM_HALF_ANGLE_DEG = 55, PITCH_DEG = 15;
 
 function beamAxis(pitchDeg, azDeg) {
@@ -445,23 +462,35 @@ async function main() {
   let ctCartesian = null, ctCartographic = null;
   let azimuthDeg = 0, skyview = null, heightAGL = 0;
   let lastEnuTx = null;
+  let raytraceQueued = false;
+
+  const spinner = document.getElementById('spinner');
+  function showSpinner() { spinner.classList.add('show'); }
+  function hideSpinner() { spinner.classList.remove('show'); }
 
   function runRaytrace() {
-    if (!ctCartesian) return;
-    const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
-    const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + heightAGL);
-    const enuTx = Cesium.Transforms.eastNorthUpToFixedFrame(ctRaised);
-    lastEnuTx = enuTx;
+    if (!ctCartesian || raytraceQueued) return;
+    raytraceQueued = true;
+    showSpinner();
+    // Yield to browser so spinner renders before heavy CPU work
+    requestAnimationFrame(() => { setTimeout(() => {
+      const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
+      const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + heightAGL);
+      const enuTx = Cesium.Transforms.eastNorthUpToFixedFrame(ctRaised);
+      lastEnuTx = enuTx;
 
-    const t0 = performance.now();
-    skyview = computeSkyview(viewer, ctRaised, enuTx, PITCH_DEG, azimuthDeg);
-    skyview._azDeg = azimuthDeg;
-    const dt = performance.now() - t0;
+      const t0 = performance.now();
+      skyview = computeSkyview(viewer, ctRaised, enuTx, PITCH_DEG, azimuthDeg);
+      skyview._azDeg = azimuthDeg;
+      const dt = performance.now() - t0;
 
-    drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, ctRaised, enuTx, skyview);
-    drawPolarPlot(document.getElementById('polarCanvas'), skyview, azimuthDeg);
-    updatePolarLabel();
-    updateHUD(dt);
+      drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, ctRaised, enuTx, skyview);
+      drawPolarPlot(document.getElementById('polarCanvas'), skyview, azimuthDeg);
+      updatePolarLabel();
+      updateHUD(dt);
+      hideSpinner();
+      raytraceQueued = false;
+    }, 0); });
   }
 
   function updatePolarLabel() {
