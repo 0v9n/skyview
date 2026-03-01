@@ -12,18 +12,6 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 #cesiumContainer { width: 100vw; height: 100vh; }
 #overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1; }
 
-/* Search bar — always visible, top center */
-#searchWrap {
-  position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 20;
-  width: 320px; max-width: calc(100vw - 20px);
-}
-#searchInput {
-  width: 100%; background: rgba(10,12,20,0.88); color: #eee;
-  border: 1px solid #444; border-radius: 8px; padding: 8px 12px; font-size: 13px;
-  outline: none; backdrop-filter: blur(6px);
-}
-#searchInput:focus { border-color: #4c4; }
-#searchInput::placeholder { color: #666; }
 
 /* Panel — HUD info only, slides in from right below polar */
 #panel {
@@ -56,69 +44,61 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
   white-space: nowrap;
 }
 
-/* Bottom controls bar */
+/* Unified bottom bar: search + pin + controls */
 #bottomBar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 15;
   background: rgba(10,12,20,0.88); border-top: 1px solid #333;
-  padding: 8px 12px; backdrop-filter: blur(6px);
-  display: none; /* shown after first point */
-  flex-direction: row; align-items: center; justify-content: center; gap: 12px;
+  padding: 6px 10px; backdrop-filter: blur(6px);
+  display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px;
   flex-wrap: wrap;
 }
-#bottomBar label { color: #999; font-size: 11px; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
-#bottomBar input[type=range] { width: 80px; }
+#bottomBar #searchInput {
+  background: #1a1d28; color: #eee; border: 1px solid #444; border-radius: 6px;
+  padding: 6px 10px; font-size: 12px; outline: none; width: 180px; flex-shrink: 1;
+}
+#bottomBar #searchInput:focus { border-color: #4c4; }
+#bottomBar #searchInput::placeholder { color: #666; }
+#bottomBar #pinBtn {
+  width: 36px; height: 36px; border-radius: 50%; border: 2px solid #555;
+  background: #2a2d38; color: #ccc; font-size: 18px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; flex-shrink: 0;
+}
+#bottomBar #pinBtn:hover { background: #3a3d48; border-color: #888; }
+#bottomBar #pinBtn.active { background: rgba(40,180,80,0.85); border-color: #4c4; color: #fff; }
+#bottomBar label { color: #999; font-size: 11px; display: flex; align-items: center; gap: 3px; white-space: nowrap; }
 #bottomBar input[type=number] {
   background: #1a1d28; color: #eee; border: 1px solid #444; border-radius: 5px;
-  padding: 4px 6px; font-size: 12px; outline: none;
+  padding: 4px 5px; font-size: 12px; outline: none;
 }
-#bottomBar .row { display: flex; align-items: center; gap: 3px; }
+#bottomBar .row { display: flex; align-items: center; gap: 2px; }
 #bottomBar .row button {
-  padding: 4px 10px; font-size: 14px; cursor: pointer;
+  padding: 4px 8px; font-size: 14px; cursor: pointer;
   background: #2a2d38; color: #ccc; border: 1px solid #444; border-radius: 4px;
-  min-width: 32px; min-height: 32px;
+  min-width: 30px; min-height: 30px;
 }
 #bottomBar .row button:hover { background: #3a3d48; }
-
-
-/* Pin placement button */
-#pinBtn {
-  position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%); z-index: 20;
-  width: 48px; height: 48px; border-radius: 50%; border: 2px solid #555;
-  background: rgba(10,12,20,0.88); color: #ccc; font-size: 22px;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  backdrop-filter: blur(6px); transition: all 0.2s;
-}
-#pinBtn:hover { background: rgba(30,33,48,0.95); border-color: #888; }
-#pinBtn.active { background: rgba(40,180,80,0.85); border-color: #4c4; color: #fff; }
-
-#controls {
-  position: fixed; bottom: 10px; left: 10px;
-  color: #777; font-size: 10px; background: rgba(0,0,0,0.5);
-  padding: 5px 10px; border-radius: 5px; pointer-events: none; z-index: 10;
-}
+#bottomBar .sep { width: 1px; height: 24px; background: #444; flex-shrink: 0; }
 .cesium-viewer-toolbar, .cesium-viewer-animationContainer,
 .cesium-viewer-timelineContainer, .cesium-viewer-bottom,
 .cesium-viewer-fullscreenContainer { display: none !important; }
 
 @media (max-width: 600px) {
-  #polarFloat { width: 120px; height: 120px; top: 50px; right: 8px; }
+  #polarFloat { width: 120px; height: 120px; top: 10px; right: 8px; }
   #polarFloat canvas { width: 120px; height: 120px; }
-  #panel { max-width: 180px; right: 8px; top: 178px; padding: 6px 8px; }
+  #panel { max-width: 180px; right: 8px; top: 140px; padding: 6px 8px; }
   #panel .hud { font-size: 10px; }
-  #searchWrap { width: 200px; max-width: calc(100vw - 145px); left: 10px; transform: none; }
-  #bottomBar { gap: 8px; padding: 6px 8px; }
+  #bottomBar { gap: 5px; padding: 5px 6px; }
+  #bottomBar #searchInput { width: 120px; padding: 5px 8px; font-size: 11px; }
   #bottomBar label { font-size: 10px; }
-  #pinBtn { bottom: 55px; width: 42px; height: 42px; font-size: 18px; }
+  #bottomBar #pinBtn { width: 32px; height: 32px; font-size: 16px; }
 }
 </style>
 </head>
 <body>
 <div id="cesiumContainer"></div>
 <canvas id="overlay"></canvas>
-<div id="searchWrap">
-  <input type="text" id="searchInput" placeholder="Search: 'Eiffel Tower' or '48.858, 2.294'" spellcheck="false">
-</div>
-<!-- Polar plot — always visible in top-right after point placed -->
+<!-- Polar plot — top-right after point placed -->
 <div id="polarFloat">
   <canvas id="polarCanvas" width="480" height="480"></canvas>
   <div id="polarLabel"></div>
@@ -126,21 +106,23 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 <div id="panel">
   <div class="hud" id="hud"></div>
 </div>
-<!-- Bottom controls bar -->
+<!-- Unified bottom bar -->
 <div id="bottomBar">
+  <input type="text" id="searchInput" placeholder="Search location..." spellcheck="false">
+  <div class="sep"></div>
+  <button id="pinBtn" title="Place point">&#9906;</button>
+  <div class="sep"></div>
   <label>Az <span class="row">
     <button id="btnAzMinus">&minus;</button>
-    <input type="number" id="numAz" value="0" min="0" max="355" step="10" style="width:50px;text-align:center;">
+    <input type="number" id="numAz" value="0" min="0" max="355" step="10" style="width:48px;text-align:center;">
     <button id="btnAzPlus">+</button><span style="color:#666">&deg;</span>
   </span></label>
   <label>&Delta;H <span class="row">
     <button id="btnHMinus">&minus;</button>
-    <input type="number" id="numHeight" value="0" min="0" max="200" step="1" style="width:45px;text-align:center;">
+    <input type="number" id="numHeight" value="0" min="0" max="200" step="1" style="width:42px;text-align:center;">
     <button id="btnHPlus">+</button><span style="color:#666">m</span>
   </span></label>
 </div>
-<button id="pinBtn" title="Place point mode">&#9906;</button>
-<div id="controls"></div>
 <script>
 // ============================================================
 // PLATFORM DETECTION
@@ -371,13 +353,12 @@ async function main() {
   const panel = document.getElementById('panel');
   const polarFloat = document.getElementById('polarFloat');
   const polarLabel = document.getElementById('polarLabel');
-  const bottomBar = document.getElementById('bottomBar');
   const ovCanvas = document.getElementById('overlay');
   const ovCtx = ovCanvas.getContext('2d');
 
   let hasPoint = false;
 
-  function showPolar() { polarFloat.style.display = 'block'; bottomBar.style.display = 'flex'; }
+  function showPolar() { polarFloat.style.display = 'block'; }
   function showPanel() { panel.classList.add('visible'); panel.classList.remove('hiding'); }
   function hidePanel() { panel.classList.remove('visible'); panel.classList.add('hiding'); }
 
@@ -601,11 +582,6 @@ async function main() {
     if (document.activeElement === document.getElementById('searchInput')) return;
     if (e.key==='r'||e.key==='R') resetCamera();
   });
-
-  // Controls hint
-  document.getElementById('controls').textContent = IS_MOBILE
-    ? 'Tap pin button to place point | Pinch: zoom | Drag: orbit'
-    : 'Pin button or right-click to place point | Scroll: zoom | Drag: orbit | R: reset';
 
   // Search
   const searchInput = document.getElementById('searchInput');
