@@ -414,13 +414,10 @@ async function main() {
   cc.minimumZoomDistance = 5;
   cc.maximumZoomDistance = 50000;
   cc.enableCollisionDetection = true;
-  cc._zoomFactor = 5;  // faster zoom for both desktop scroll + mobile pinch
-
-  // Altitude-proportional zoom — override default handler
-  const origZoomFn = cc._zoomFactor;
+  // Altitude-proportional zoom — each scroll tick moves ~15% of current height
   viewer.scene.preRender.addEventListener(() => {
     const height = viewer.scene.camera.positionCartographic?.height || 1000;
-    cc._zoomFactor = Math.max(2, Math.min(20, height / 100));
+    cc._zoomFactor = Math.max(5, Math.min(50, height / 20));
   });
 
   if (IS_MOBILE) {
