@@ -390,24 +390,9 @@ async function main() {
     viewer.scene.globe && (viewer.scene.globe.tileCacheSize = 50);
   }
 
-  // Camera controller — Google Earth feel
+  // Camera — use Cesium defaults, just set mobile touch mapping
   const cc = viewer.scene.screenSpaceCameraController;
-  cc.inertiaSpin = 0.9;
-  cc.inertiaTranslate = 0.9;
-  cc.inertiaZoom = 0.8;
   cc.minimumZoomDistance = 5;
-  cc.maximumZoomDistance = 50000;
-  cc.enableCollisionDetection = true;
-  // Altitude-proportional zoom — Google Earth style
-  viewer.scene.preRender.addEventListener(() => {
-    const height = viewer.scene.camera.positionCartographic?.height || 1000;
-    if (IS_MOBILE) {
-      cc._zoomFactor = Math.max(5, Math.min(50, height / 20));   // pinch needs more range
-    } else {
-      cc._zoomFactor = Math.max(3, Math.min(25, height / 40));   // scroll wheel: slower, precise
-    }
-  });
-
   if (IS_MOBILE) {
     cc.zoomEventTypes = [Cesium.CameraEventType.PINCH];
     cc.tiltEventTypes = [{ eventType: Cesium.CameraEventType.PINCH, modifier: undefined }];
