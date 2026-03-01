@@ -509,6 +509,8 @@ async function main() {
   // ============================================================
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
   function placePoint(pos) {
+    // Force fresh render so depth buffer matches current view
+    viewer.scene.render();
     const cart = viewer.scene.pickPosition(pos);
     if (!cart) return;
     ctCartesian = cart;
@@ -535,14 +537,11 @@ async function main() {
     placementMode = true;
     pinBtn.classList.add('active');
     viewer.scene.canvas.style.cursor = 'crosshair';
-    // Disable camera so tap is a clean pick, not drag+pick
-    viewer.scene.screenSpaceCameraController.enableInputs = false;
   }
   function exitPlacementMode() {
     placementMode = false;
     pinBtn.classList.remove('active');
     viewer.scene.canvas.style.cursor = '';
-    viewer.scene.screenSpaceCameraController.enableInputs = true;
   }
 
   pinBtn.addEventListener('click', () => {
