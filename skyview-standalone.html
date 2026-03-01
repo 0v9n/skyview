@@ -517,6 +517,10 @@ async function main() {
     ctCartesian = cart;
     ctCartographic = Cesium.Cartographic.fromCartesian(cart);
 
+    // Instant visual feedback
+    drawPointMarker();
+    updatePolarLabel();
+
     if (!hasPoint) {
       hasPoint = true;
       showPolar();
