@@ -456,6 +456,19 @@ async function main() {
   let lastCameraPos = new Cesium.Cartesian3();
   const IDLE_DELAY = IS_MOBILE ? 200 : 100;
 
+  function drawPointMarker() {
+    if (!ctCartesian) return;
+    const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
+    const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + heightAGL);
+    const sp = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, ctRaised);
+    ovCtx.clearRect(0, 0, ovCanvas.width, ovCanvas.height);
+    if (!sp) return;
+    const x = sp.x * OV_DPR, y = sp.y * OV_DPR;
+    ovCtx.beginPath(); ovCtx.arc(x, y, 6*OV_DPR, 0, Math.PI*2);
+    ovCtx.fillStyle = 'cyan'; ovCtx.fill();
+    ovCtx.strokeStyle = 'white'; ovCtx.lineWidth = 2; ovCtx.stroke();
+  }
+
   function redrawOverlayNow() {
     if (!skyview || !ctCartesian || !lastEnuTx) return;
     const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
@@ -471,8 +484,9 @@ async function main() {
     Cesium.Cartesian3.clone(camPos, lastCameraPos);
 
     if (moved) {
-      ovCanvas.style.opacity = '0';
-      ovCtx.clearRect(0, 0, ovCanvas.width, ovCanvas.height);
+      // Keep just the point marker visible during movement
+      ovCanvas.style.opacity = '1';
+      drawPointMarker();
       if (cameraIdleTimer) clearTimeout(cameraIdleTimer);
       cameraIdleTimer = setTimeout(redrawOverlayNow, IDLE_DELAY);
 
@@ -484,8 +498,6 @@ async function main() {
       }
     }
   });
-
-  ovCanvas.style.transition = 'opacity 0.15s ease-out';
 
   function updateHUD(ms) {
     const lat = Cesium.Math.toDegrees(ctCartographic.latitude);
