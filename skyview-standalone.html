@@ -63,7 +63,7 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
   display: none; /* shown after first point */
   transition: opacity 0.2s ease-out;
 }
-#polarFloat canvas { width: 148px; height: 148px; border-radius: 50%; display: block; margin: 0 auto; }
+#polarFloat canvas { width: 148px; height: 148px; border-radius: 50%; display: block; margin: 0 auto; cursor: crosshair; touch-action: none; }
 
 /* Toggle button */
 #panelToggle {
@@ -85,12 +85,15 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 .cesium-viewer-fullscreenContainer { display: none !important; }
 
 @media (max-width: 600px) {
-  /* Polar: top-right, ~quarter screen */
-  #polarFloat { width: calc(50vw - 15px); height: auto; top: 50px; right: 10px; padding: 4px; }
-  #polarFloat canvas { width: 100%; height: auto; }
-  /* Panel: below polar, right half */
-  #panel { width: calc(50vw - 15px); right: 10px; top: calc(50vw + 45px); max-height: calc(100vh - 50vw - 60px); overflow-y: auto; }
-  #panelToggle { top: calc(50vw + 45px); right: 10px; bottom: auto; }
+  /* Same layout as desktop: polar top-right, panel below, just smaller */
+  #polarFloat { width: 140px; height: 150px; top: 50px; right: 8px; padding: 4px; }
+  #polarFloat canvas { width: 132px; height: 132px; }
+  #panel { width: 200px; right: 8px; top: 210px; max-height: calc(100vh - 220px); overflow-y: auto; padding: 8px; }
+  #panel label { font-size: 10px; }
+  #panel input[type=range] { width: 60px; }
+  #panel .hud { font-size: 10px; }
+  #panelToggle { top: 210px; right: 8px; }
+  #searchWrap { width: 200px; max-width: calc(100vw - 170px); left: 10px; transform: none; }
 }
 </style>
 </head>
@@ -628,6 +631,62 @@ async function main() {
   numH.addEventListener('change',()=>setHeight(+numH.value));
   document.getElementById('btnHMinus').addEventListener('click',()=>setHeight(heightAGL-1));
   document.getElementById('btnHPlus').addEventListener('click',()=>setHeight(heightAGL+1));
+
+  // ============================================================
+  // POLAR PLOT DRAG — swipe/drag to aim azimuth
+  // ============================================================
+  const polarCanvas = document.getElementById('polarCanvas');
+  let polarDragging = false;
+
+  function polarAzFromEvent(e) {
+    const rect = polarCanvas.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const dx = clientX - cx, dy = clientY - cy;
+    // atan2(dx, -dy) → N=0, E=90, S=180, W=270
+    let deg = Math.atan2(dx, -dy) * 180 / Math.PI;
+    if (deg < 0) deg += 360;
+    return Math.round(deg / 5) * 5; // snap to 5° increments
+  }
+
+  function onPolarStart(e) {
+    if (!hasPoint) return;
+    polarDragging = true;
+    setAzimuth(polarAzFromEvent(e));
+  }
+  function onPolarMove(e) {
+    if (!polarDragging) return;
+    e.preventDefault();
+    setAzimuth(polarAzFromEvent(e));
+  }
+  function onPolarEnd() { polarDragging = false; }
+
+  // Touch events
+  polarCanvas.addEventListener('touchstart', onPolarStart, { passive: true });
+  polarCanvas.addEventListener('touchmove', onPolarMove, { passive: false });
+  polarCanvas.addEventListener('touchend', onPolarEnd);
+  polarCanvas.addEventListener('touchcancel', onPolarEnd);
+  // Mouse events (desktop)
+  polarCanvas.addEventListener('mousedown', onPolarStart);
+  window.addEventListener('mousemove', onPolarMove);
+  window.addEventListener('mouseup', onPolarEnd);
+
+  // ============================================================
+  // FULLSCREEN — request on first user interaction
+  // ============================================================
+  let fullscreenRequested = false;
+  function requestFullscreen() {
+    if (fullscreenRequested || document.fullscreenElement) return;
+    fullscreenRequested = true;
+    const el = document.documentElement;
+    const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (rfs) rfs.call(el).catch(() => {});
+  }
+  // Trigger on first meaningful interaction
+  document.addEventListener('click', requestFullscreen, { once: true });
+  document.addEventListener('touchstart', requestFullscreen, { once: true });
 
   console.log('Skyview raytrace viewer ready');
 }
