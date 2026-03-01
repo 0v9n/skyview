@@ -49,12 +49,15 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 15;
   background: rgba(10,12,20,0.88); border-top: 1px solid #333;
   padding: 6px 10px; backdrop-filter: blur(6px);
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+}
+#bottomBar .bar-row {
   display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px;
-  flex-wrap: wrap;
+  width: 100%;
 }
 #bottomBar #searchInput {
   background: #1a1d28; color: #eee; border: 1px solid #444; border-radius: 6px;
-  padding: 6px 10px; font-size: 12px; outline: none; width: 180px; flex-shrink: 1;
+  padding: 6px 10px; font-size: 12px; outline: none; flex: 1; max-width: 300px;
 }
 #bottomBar #searchInput:focus { border-color: #4c4; }
 #bottomBar #searchInput::placeholder { color: #666; }
@@ -108,20 +111,23 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 </div>
 <!-- Unified bottom bar -->
 <div id="bottomBar">
-  <input type="text" id="searchInput" placeholder="Search location..." spellcheck="false">
-  <div class="sep"></div>
-  <button id="pinBtn" title="Place point">&#9906;</button>
-  <div class="sep"></div>
-  <label>Az <span class="row">
-    <button id="btnAzMinus">&minus;</button>
-    <input type="number" id="numAz" value="0" min="0" max="355" step="10" style="width:48px;text-align:center;">
-    <button id="btnAzPlus">+</button><span style="color:#666">&deg;</span>
-  </span></label>
-  <label>&Delta;H <span class="row">
-    <button id="btnHMinus">&minus;</button>
-    <input type="number" id="numHeight" value="0" min="0" max="200" step="1" style="width:42px;text-align:center;">
-    <button id="btnHPlus">+</button><span style="color:#666">m</span>
-  </span></label>
+  <div class="bar-row">
+    <input type="text" id="searchInput" placeholder="Search location..." spellcheck="false">
+    <button id="pinBtn" title="Place point">&#9906;</button>
+  </div>
+  <div class="bar-row">
+    <label>Az <span class="row">
+      <button id="btnAzMinus">&minus;</button>
+      <input type="number" id="numAz" value="0" min="0" max="355" step="10" style="width:48px;text-align:center;">
+      <button id="btnAzPlus">+</button><span style="color:#666">&deg;</span>
+    </span></label>
+    <div class="sep"></div>
+    <label>&Delta;H <span class="row">
+      <button id="btnHMinus">&minus;</button>
+      <input type="number" id="numHeight" value="0" min="0" max="200" step="1" style="width:42px;text-align:center;">
+      <button id="btnHPlus">+</button><span style="color:#666">m</span>
+    </span></label>
+  </div>
 </div>
 <script>
 // ============================================================
