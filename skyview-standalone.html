@@ -17,11 +17,11 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 /* Floating polar plot — top-right, transparent */
 #polarFloat {
   position: fixed; top: 10px; right: 10px; z-index: 9;
-  width: 160px; height: 160px;
+  width: 140px; height: 140px;
   display: none; /* shown after first point */
   transition: opacity 0.2s ease-out;
 }
-#polarFloat canvas { width: 160px; height: 160px; border-radius: 50%; display: block; cursor: crosshair; touch-action: none; }
+#polarFloat canvas { width: 140px; height: 140px; border-radius: 50%; display: block; cursor: crosshair; touch-action: none; }
 #polarLabel {
   color: #ccc; font-size: 10px; text-align: center; margin-top: 2px;
   text-shadow: 0 1px 3px rgba(0,0,0,0.8);
@@ -38,7 +38,7 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 }
 #bottomBar .bar-row {
   display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px;
-  width: 100%;
+  width: 100%; max-width: 480px;
 }
 #bottomBar #searchInput {
   background: #1a1d28; color: #eee; border: 1px solid #444; border-radius: 6px;

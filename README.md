@@ -1,6 +1,6 @@
 # Skyview
 
-Sky visibility analyzer. Place a point anywhere on Earth and instantly see what portion of the sky is clear vs blocked by buildings and terrain.
+Sky obstruction analyzer. Place a point anywhere on Earth and see how much of the sky is blocked by buildings and terrain using Google Photorealistic 3D Tiles.
 
 ## How it works
 
@@ -9,8 +9,8 @@ Sky visibility analyzer. Place a point anywhere on Earth and instantly see what 
  ┌─────────────────────────────────────────────────────────────┐
  │                                                             │
  │   ┌──────────────┐    ┌──────────────┐   ┌──────────────┐   │
- │   │  CesiumJS    │    │  Raytrace    │   │  UI Panel    │   │
- │   │  3D Viewer   │───>│  Engine      │──>│  + Polar Plot│   │
+ │   │  CesiumJS    │    │  Raytrace    │   │  2D Polar    │   │
+ │   │  3D Viewer   │───>│  Engine      │──>│  Plot        │   │
  │   └──────┬───────┘    └──────────────┘   └──────────────┘   │
  │          │                                                  │
  │          │ pickFromRay()                                    │
@@ -26,13 +26,13 @@ Sky visibility analyzer. Place a point anywhere on Earth and instantly see what 
 ### Raytrace pipeline
 
 ```
-  Right-click places point
+  Pin button → tap to place point
           │
           v
-  ┌───────────────┐     Cast 72 x 15 rays into
-  │  Point pos    │────> hemisphere above point
+  ┌───────────────┐     Cast rays into hemisphere
+  │  Point pos    │────> above the point
   │  (lat/lon/h)  │     (azimuth x elevation grid)
-  └───────────────┘
+  └───────────────┘     Desktop: 72x15  Mobile: 36x10
           │
           v
   ┌───────────────┐     Each ray checked against
@@ -42,13 +42,14 @@ Sky visibility analyzer. Place a point anywhere on Earth and instantly see what 
           │
           v
   ┌───────────────┐     ┌───────────────┐
-  │  Hit/miss     │────>│  Dome overlay │  2D canvas over 3D view
-  │  results      │     │  (red/green)  │  reprojected on camera move
+  │  Hit/miss     │────>│  Dome overlay │  3D: red/green cells
+  │  results      │     │  on map       │  over the 3D view
   └───────────────┘     └───────────────┘
           │
           v
   ┌───────────────┐
-  │  Polar plot   │  Top-down sky map with % clear
+  │  Polar plot   │  2D top-down obstruction map
+  │  (top-right)  │  with obstruction % center
   └───────────────┘
 ```
 
@@ -68,6 +69,37 @@ Sky visibility analyzer. Place a point anywhere on Earth and instantly see what 
        point
 ```
 
+## UI layout
+
+Same layout on mobile and desktop:
+
+```
+ ┌──────────────────────────────┐
+ │                    ┌───────┐ │
+ │   3D Map           │ Polar │ │
+ │                    │ Plot  │ │
+ │         ·          │ 12.5% │ │
+ │      (point)       │       │ │
+ │                    └───────┘ │
+ │                   lat, lon   │
+ │                              │
+ ├──────────────────────────────┤
+ │  [ Search...         ] [📌] │
+ │  [ − Az + °  |  − ΔH + m  ] │
+ └──────────────────────────────┘
+```
+
+- **Polar plot** (top-right): always visible after placing a point, drag to aim azimuth
+- **Obstruction %**: shown inside the polar plot center
+  - Green: < 15%
+  - Yellow: >= 15% and < 22%
+  - Red: >= 22%
+- **Lat/lon**: shown below the polar plot
+- **Bottom bar** (row 1): search input + pin placement button
+- **Bottom bar** (row 2): azimuth +/- (10° steps) + height +/- (1m steps)
+- **Pin button**: tap to enter placement mode, tap map to place point. Pulses orange during raytrace
+- **Dome overlay**: hides during camera movement (only cyan dot visible), reappears when idle
+
 ## Usage
 
 **Hosted** — open [0v9n.github.io/skyview/skyview-standalone.html](https://0v9n.github.io/skyview/skyview-standalone.html)
@@ -75,8 +107,7 @@ Sky visibility analyzer. Place a point anywhere on Earth and instantly see what 
 **Local** — the bundled API key is restricted to the hosted URL above. To run locally, get your own [Google Maps API key](https://developers.google.com/maps/documentation/tile/get-api-key) and replace it in the HTML:
 
 ```js
-// line 310 in skyview-standalone.html
-const scene = { api_key: 'YOUR_API_KEY_HERE', ... };
+const sceneConfig = { api_key: 'YOUR_API_KEY_HERE', ... };
 ```
 
 Then run `python3 serve.py` (opens browser automatically on `:8090`)
@@ -85,12 +116,24 @@ Then run `python3 serve.py` (opens browser automatically on `:8090`)
 
 | Input | Action |
 |---|---|
-| Right-click | Place point |
+| Pin button | Enter placement mode, tap map to place |
+| Right-click (desktop) | Place point directly |
 | Drag | Orbit camera |
-| R | Reset camera |
+| Scroll / Pinch | Zoom (altitude-proportional) |
+| R (desktop) | Reset camera |
 | Search bar | Fly to location (name or `lat, lon`) |
-| Azimuth slider | Rotate beam direction |
-| Height slider | Raise point above surface |
+| Drag polar plot | Aim beam azimuth direction |
+| Az +/- | Rotate beam 10° increments |
+| ΔH +/- | Raise/lower point 1m increments |
+
+### Performance
+
+- Desktop: 72x15 = 1080 rays, ~1-2s raytrace
+- Mobile: 36x10 = 360 rays, ~1s raytrace
+- Dome overlay hides during camera movement for smooth orbiting
+- Cyan point marker stays visible during movement
+- Camera inertia tuned to match Google Earth feel
+- Pin button pulses orange during raytrace processing
 
 ## Files
 
