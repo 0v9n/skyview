@@ -172,7 +172,7 @@ function computeSkyviewAsync(viewer, ctCart, enuTx, pitchDeg, azDeg) {
             const pick = viewer.scene.pickFromRay(new Cesium.Ray(ctCart, _rtWDir), []);
             if (pick && pick.position) {
               const d = Cesium.Cartesian3.distance(ctCart, pick.position);
-              if (d > 0.3 && d < RAY_RANGE) { hit=true; hitDist=d; }
+              if (d < RAY_RANGE) { hit=true; hitDist=d; }
             }
             total++; if(!hit) clear++;
           }
