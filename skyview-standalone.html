@@ -144,38 +144,50 @@ const _rtNorm = new Cesium.Cartesian3();
 const _rtAxis = new Cesium.Cartesian3();
 const _rtWDir = new Cesium.Cartesian3();
 
-function computeSkyview(viewer, ctCart, enuTx, pitchDeg, azDeg) {
-  const minEl = MIN_ELEV_DEG*Math.PI/180, maxEl = Math.PI/2;
-  const axis = beamAxis(pitchDeg, azDeg);
-  Cesium.Cartesian3.normalize(axis, _rtAxis);
-  const beamCos = Math.cos(BEAM_HALF_ANGLE_DEG*Math.PI/180);
-  const results = []; let clear=0, total=0;
+// Chunked async raytrace — yields to browser every CHUNK_SIZE rows
+const CHUNK_SIZE = IS_MOBILE ? 6 : 12;
 
-  for (let ai=0; ai<AZ_N; ai++) {
-    const row = [], az = (ai/AZ_N)*2*Math.PI;
-    for (let ei=0; ei<EL_N; ei++) {
-      const el = minEl + (ei/(EL_N-1))*(maxEl-minEl);
-      _rtEnu.x = Math.sin(az)*Math.cos(el); _rtEnu.y = Math.cos(az)*Math.cos(el); _rtEnu.z = Math.sin(el);
-      Cesium.Cartesian3.normalize(_rtEnu, _rtNorm);
-      const inside = Cesium.Cartesian3.dot(_rtNorm, _rtAxis) >= beamCos;
+function computeSkyviewAsync(viewer, ctCart, enuTx, pitchDeg, azDeg) {
+  return new Promise((resolve) => {
+    const minEl = MIN_ELEV_DEG*Math.PI/180, maxEl = Math.PI/2;
+    const axis = beamAxis(pitchDeg, azDeg);
+    Cesium.Cartesian3.normalize(axis, _rtAxis);
+    const beamCos = Math.cos(BEAM_HALF_ANGLE_DEG*Math.PI/180);
+    const results = []; let clear=0, total=0, ai=0;
 
-      let hit=false, hitDist=RAY_RANGE;
-      if (inside) {
-        Cesium.Matrix4.multiplyByPointAsVector(enuTx, _rtEnu, _rtWDir);
-        Cesium.Cartesian3.normalize(_rtWDir, _rtWDir);
-        const pick = viewer.scene.pickFromRay(new Cesium.Ray(ctCart, _rtWDir), []);
-        if (pick && pick.position) {
-          const d = Cesium.Cartesian3.distance(ctCart, pick.position);
-          if (d > 0.3 && d < RAY_RANGE) { hit=true; hitDist=d; }
+    function processChunk() {
+      const end = Math.min(ai + CHUNK_SIZE, AZ_N);
+      for (; ai < end; ai++) {
+        const row = [], az = (ai/AZ_N)*2*Math.PI;
+        for (let ei=0; ei<EL_N; ei++) {
+          const el = minEl + (ei/(EL_N-1))*(maxEl-minEl);
+          _rtEnu.x = Math.sin(az)*Math.cos(el); _rtEnu.y = Math.cos(az)*Math.cos(el); _rtEnu.z = Math.sin(el);
+          Cesium.Cartesian3.normalize(_rtEnu, _rtNorm);
+          const inside = Cesium.Cartesian3.dot(_rtNorm, _rtAxis) >= beamCos;
+
+          let hit=false, hitDist=RAY_RANGE;
+          if (inside) {
+            Cesium.Matrix4.multiplyByPointAsVector(enuTx, _rtEnu, _rtWDir);
+            Cesium.Cartesian3.normalize(_rtWDir, _rtWDir);
+            const pick = viewer.scene.pickFromRay(new Cesium.Ray(ctCart, _rtWDir), []);
+            if (pick && pick.position) {
+              const d = Cesium.Cartesian3.distance(ctCart, pick.position);
+              if (d > 0.3 && d < RAY_RANGE) { hit=true; hitDist=d; }
+            }
+            total++; if(!hit) clear++;
+          }
+          row.push({inside, hit, hitDist, az, el, enuDir: Cesium.Cartesian3.clone(_rtEnu)});
         }
-        total++; if(!hit) clear++;
+        results.push(row);
       }
-      // Store a copy of enuDir for dome overlay (needed later)
-      row.push({inside, hit, hitDist, az, el, enuDir: Cesium.Cartesian3.clone(_rtEnu)});
+      if (ai < AZ_N) {
+        setTimeout(processChunk, 0); // yield to browser
+      } else {
+        resolve({results, clear, total, pct: total>0?(100*clear/total).toFixed(1):'N/A'});
+      }
     }
-    results.push(row);
-  }
-  return {results, clear, total, pct: total>0?(100*clear/total).toFixed(1):'N/A'};
+    processChunk();
+  });
 }
 
 // ============================================================
@@ -422,35 +434,31 @@ async function main() {
   let ctCartesian = null, ctCartographic = null;
   let azimuthDeg = 0, skyview = null, heightAGL = 0;
   let lastEnuTx = null;
-  let raytraceQueued = false;
 
   function showSpinner() { document.getElementById('pinBtn').classList.add('processing'); }
   function hideSpinner() { document.getElementById('pinBtn').classList.remove('processing'); }
 
-  let raytraceTimer = null;
+  let raytraceId = 0; // increments on each request, stale ones abort
 
   function runRaytrace() {
     if (!ctCartesian) return;
-    // Debounce — always schedule the latest, cancel previous
-    if (raytraceTimer) clearTimeout(raytraceTimer);
+    const thisId = ++raytraceId;
     showSpinner();
-    raytraceTimer = requestAnimationFrame(() => { raytraceTimer = setTimeout(() => {
-      try {
-        const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
-        const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + heightAGL);
-        const enuTx = Cesium.Transforms.eastNorthUpToFixedFrame(ctRaised);
-        lastEnuTx = enuTx;
 
-        skyview = computeSkyview(viewer, ctRaised, enuTx, PITCH_DEG, azimuthDeg);
-        skyview._azDeg = azimuthDeg;
+    const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
+    const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + heightAGL);
+    const enuTx = Cesium.Transforms.eastNorthUpToFixedFrame(ctRaised);
+    lastEnuTx = enuTx;
 
-        drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, ctRaised, enuTx, skyview);
-        drawPolarPlot(document.getElementById('polarCanvas'), skyview, azimuthDeg);
-        updatePolarLabel();
-      } catch(e) { console.warn('Raytrace error:', e); }
+    computeSkyviewAsync(viewer, ctRaised, enuTx, PITCH_DEG, azimuthDeg).then(result => {
+      if (thisId !== raytraceId) return; // stale, a newer raytrace superseded this one
+      skyview = result;
+      skyview._azDeg = azimuthDeg;
+      drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, ctRaised, enuTx, skyview);
+      drawPolarPlot(document.getElementById('polarCanvas'), skyview, azimuthDeg);
+      updatePolarLabel();
       hideSpinner();
-      raytraceTimer = null;
-    }, 0); });
+    }).catch(e => { console.warn('Raytrace error:', e); hideSpinner(); });
   }
 
   function updatePolarLabel() {
