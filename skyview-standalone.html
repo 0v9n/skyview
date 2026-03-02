@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Skyview</title>
 <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
 <link href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
@@ -24,7 +24,7 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 }
 #polarFloat canvas { width: 100%; height: auto; aspect-ratio: 1; border-radius: 50%; display: block; cursor: crosshair; touch-action: none; }
 #polarLabel {
-  color: #ccc; font-size: 10px; text-align: center; margin-top: 2px;
+  color: #d8d8d8; font-size: 12px; text-align: center; margin-top: 4px;
   text-shadow: 0 1px 3px rgba(0,0,0,0.8);
   white-space: nowrap;
 }
@@ -42,7 +42,7 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 }
 #bottomBar #searchInput {
   background: #1a1d28; color: #eee; border: 1px solid #444; border-radius: 6px;
-  padding: 6px 10px; font-size: 12px; outline: none; flex: 1; max-width: 300px;
+  padding: 8px 12px; font-size: 13px; outline: none; flex: 1; max-width: 320px;
 }
 #bottomBar #searchInput:focus { border-color: #4c4; }
 #bottomBar #searchInput::placeholder { color: #666; }
@@ -54,10 +54,10 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 }
 #bottomBar #pinBtn:hover { background: #3a3d48; border-color: #888; }
 #bottomBar #pinBtn.active { background: rgba(40,180,80,0.85); border-color: #4c4; color: #fff; }
-#bottomBar label { color: #999; font-size: 11px; display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+#bottomBar label { color: #bbb; font-size: 12px; display: flex; align-items: center; gap: 3px; white-space: nowrap; }
 #bottomBar input[type=number] {
   background: #1a1d28; color: #eee; border: 1px solid #444; border-radius: 5px;
-  padding: 4px 5px; font-size: 12px; outline: none;
+  padding: 5px 6px; font-size: 13px; outline: none;
 }
 #bottomBar .row { display: flex; align-items: center; gap: 2px; }
 #bottomBar .row button {
@@ -75,22 +75,41 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 }
 @keyframes pinPulse { from { opacity: 0.6; } to { opacity: 1; } }
 
+#statusLine {
+  color: #d5dbe8; font-size: 12px; min-height: 16px;
+  max-width: 420px; text-align: center;
+}
+#statusLine.warn { color: #ffd166; }
+#statusLine.error { color: #ff7b7b; }
+#statusLine.success { color: #7ee28f; }
+
+#placementHint {
+  position: fixed; top: 10px; left: 10px; z-index: 12;
+  background: rgba(8, 12, 18, 0.84); border: 1px solid #33506f; border-radius: 8px;
+  color: #dbe8ff; padding: 8px 10px; font-size: 12px; line-height: 1.25;
+  max-width: min(70vw, 380px);
+}
+#placementHint b { color: #9fd1ff; }
+
 .cesium-viewer-toolbar, .cesium-viewer-animationContainer,
 .cesium-viewer-timelineContainer, .cesium-viewer-bottom,
 .cesium-viewer-fullscreenContainer { display: none !important; }
 
 @media (max-width: 600px) {
   #polarFloat { top: 8px; right: 8px; }
-  #bottomBar { padding: 5px 8px; gap: 3px; }
-  #bottomBar #searchInput { width: 110px; padding: 5px 8px; font-size: 11px; }
-  #bottomBar label { font-size: 10px; }
+  #bottomBar { padding: 6px 9px; gap: 4px; }
+  #bottomBar #searchInput { width: 150px; padding: 6px 9px; font-size: 12px; }
+  #bottomBar label { font-size: 11px; }
   #bottomBar #pinBtn { width: 32px; height: 32px; font-size: 16px; }
+  #statusLine { font-size: 11px; max-width: 320px; }
+  #placementHint { top: 8px; left: 8px; font-size: 11px; }
 }
 </style>
 </head>
 <body>
 <div id="cesiumContainer"></div>
 <canvas id="overlay"></canvas>
+<div id="placementHint" role="status">Tap <b>◎ pin</b>, then tap map to place. Desktop: <b>right-click</b> places directly.</div>
 <!-- Polar plot — top-right after point placed -->
 <div id="polarFloat">
   <canvas id="polarCanvas" width="480" height="480"></canvas>
@@ -99,22 +118,23 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 <!-- Unified bottom bar -->
 <div id="bottomBar">
   <div class="bar-row">
-    <input type="text" id="searchInput" placeholder="Search location..." spellcheck="false">
-    <button id="pinBtn" title="Place point">&#9906;</button>
+    <input type="text" id="searchInput" placeholder="Search location..." spellcheck="false" aria-label="Search location by name or lat lon">
+    <button id="pinBtn" title="Place point" aria-label="Toggle point placement mode">&#9906;</button>
   </div>
   <div class="bar-row">
     <label>Az <span class="row">
-      <button id="btnAzMinus">&minus;</button>
-      <input type="number" id="numAz" value="0" min="0" max="355" step="10" style="width:48px;text-align:center;">
-      <button id="btnAzPlus">+</button><span style="color:#666">&deg;</span>
+      <button id="btnAzMinus" aria-label="Decrease azimuth">&minus;</button>
+      <input type="number" id="numAz" value="0" min="0" max="355" step="10" style="width:48px;text-align:center;" aria-label="Azimuth in degrees">
+      <button id="btnAzPlus" aria-label="Increase azimuth">+</button><span style="color:#666">&deg;</span>
     </span></label>
     <div class="sep"></div>
     <label>&Delta;H <span class="row">
-      <button id="btnHMinus">&minus;</button>
-      <input type="number" id="numHeight" value="0" min="0" max="40" step="0.1" style="width:42px;text-align:center;">
-      <button id="btnHPlus">+</button><span style="color:#666">m</span>
+      <button id="btnHMinus" aria-label="Decrease height">&minus;</button>
+      <input type="number" id="numHeight" value="0" min="0" max="40" step="0.1" style="width:42px;text-align:center;" aria-label="Height above ground in meters">
+      <button id="btnHPlus" aria-label="Increase height">+</button><span style="color:#666">m</span>
     </span></label>
   </div>
+  <div id="statusLine" role="status" aria-live="polite">Ready.</div>
 </div>
 <script>
 // ============================================================
@@ -365,6 +385,14 @@ function drawPolarPlot(canvas, skyview, azimuthDeg) {
 async function main() {
   const polarFloat = document.getElementById('polarFloat');
   const polarLabel = document.getElementById('polarLabel');
+  const statusLine = document.getElementById('statusLine');
+  const placementHint = document.getElementById('placementHint');
+
+  function setStatus(msg, tone='') {
+    statusLine.className = '';
+    if (tone) statusLine.classList.add(tone);
+    statusLine.textContent = msg;
+  }
   const ovCanvas = document.getElementById('overlay');
   const ovCtx = ovCanvas.getContext('2d');
 
@@ -381,7 +409,7 @@ async function main() {
   resizeOverlay();
   window.addEventListener('resize', resizeOverlay);
 
-  const sceneConfig = { api_key: 'AIzaSyCWHeBH9emavlGBH9c-yXHIKT_CCDDJH4A', lat: 47.6695, lon: -122.1055 };
+  const sceneConfig = { api_key: 'AIzaSyD4-f89r6wVshsZSBOpYJAbtMYtACfh7p8', lat: 47.6695, lon: -122.1055 };
 
   Cesium.GoogleMaps.defaultApiKey = sceneConfig.api_key;
   Cesium.RequestScheduler.requestsByServer["tile.googleapis.com:443"] = IS_MOBILE ? 10 : 18;
@@ -412,6 +440,80 @@ async function main() {
   // Camera — use Cesium defaults, just set mobile touch mapping
   const cc = viewer.scene.screenSpaceCameraController;
   cc.minimumZoomDistance = 5;
+  cc.inertiaZoom = 0.78;
+  cc.maximumMovementRatio = 0.15;
+
+  // Google-Earth-like zoom numerology (smooth exponential response)
+  // Target: keep mobile and desktop feel close, with slightly slower touch zoom.
+  function zoomFactorForHeight(hMeters) {
+    const clamped = Math.max(15, Math.min(15000, hMeters));
+    const t = Math.log10(clamped) / Math.log10(15000);
+    const base = 1.55 + (5.6 - 1.55) * t;
+    return IS_MOBILE ? base * 0.92 : base;
+  }
+
+  function retuneZoom() {
+    const h = viewer.camera.positionCartographic?.height || 200;
+    cc.zoomFactor = zoomFactorForHeight(h);
+  }
+
+  retuneZoom();
+  viewer.camera.changed.addEventListener(retuneZoom);
+
+  // Debug hooks for automated zoom-flow benchmarking.
+  function getCameraMetrics() {
+    const h = viewer.camera.positionCartographic?.height || 0;
+    return { height: h, zoomFactor: cc.zoomFactor, isMobile: IS_MOBILE };
+  }
+
+  async function runSyntheticZoomBenchmark({
+    startHeight = 2000,
+    targetHeight = 200,
+    maxSteps = 120,
+    settleMs = 16,
+  } = {}) {
+    const destination = Cesium.Cartesian3.fromDegrees(sceneConfig.lon, sceneConfig.lat, startHeight);
+    viewer.camera.setView({
+      destination,
+      orientation: {
+        heading: Cesium.Math.toRadians(-30),
+        pitch: Cesium.Math.toRadians(-45),
+        roll: 0,
+      },
+    });
+    retuneZoom();
+
+    const start = performance.now();
+    const heights = [];
+    let steps = 0;
+    while (steps < maxSteps) {
+      const h = viewer.camera.positionCartographic?.height || 0;
+      heights.push(h);
+      if (h <= targetHeight) break;
+      viewer.camera.zoomIn(Math.max(1.5, h * 0.04 * cc.zoomFactor));
+      retuneZoom();
+      steps++;
+      await new Promise(r => setTimeout(r, settleMs));
+    }
+    const endHeight = viewer.camera.positionCartographic?.height || 0;
+    return {
+      isMobile: IS_MOBILE,
+      startHeight,
+      targetHeight,
+      endHeight,
+      steps,
+      elapsedMs: Math.round(performance.now() - start),
+      zoomFactor: cc.zoomFactor,
+      firstHeights: heights.slice(0, 8).map(v => +v.toFixed(2)),
+    };
+  }
+
+  window.__skyviewDebug = {
+    getCameraMetrics,
+    runSyntheticZoomBenchmark,
+    getZoomFactorForHeight: zoomFactorForHeight,
+  };
+
   if (IS_MOBILE) {
     cc.zoomEventTypes = [Cesium.CameraEventType.PINCH];
     cc.tiltEventTypes = [{ eventType: Cesium.CameraEventType.PINCH, modifier: undefined }];
@@ -421,7 +523,10 @@ async function main() {
   try {
     const tileset = await Cesium.createGooglePhotorealistic3DTileset();
     viewer.scene.primitives.add(tileset);
-  } catch(e) { console.warn('Google 3D tiles failed:', e); }
+  } catch(e) {
+    console.warn('Google 3D tiles failed:', e);
+    setStatus('Could not load Google 3D tiles.', 'error');
+  }
 
   // Camera
   const initCart = Cesium.Cartesian3.fromDegrees(sceneConfig.lon, sceneConfig.lat, 50);
@@ -435,8 +540,14 @@ async function main() {
   let azimuthDeg = 0, skyview = null, heightAGL = 0;
   let lastEnuTx = null;
 
-  function showSpinner() { document.getElementById('pinBtn').classList.add('processing'); }
-  function hideSpinner() { document.getElementById('pinBtn').classList.remove('processing'); }
+  function showSpinner() {
+    document.getElementById('pinBtn').classList.add('processing');
+    setStatus('Analyzing sky visibility…', 'warn');
+  }
+  function hideSpinner() {
+    document.getElementById('pinBtn').classList.remove('processing');
+    if (skyview?.pct) setStatus(`Clear sky ${skyview.pct}%`, 'success');
+  }
 
   let raytraceId = 0; // increments on each request, stale ones abort
 
@@ -458,7 +569,7 @@ async function main() {
       drawPolarPlot(document.getElementById('polarCanvas'), skyview, azimuthDeg);
       updatePolarLabel();
       hideSpinner();
-    }).catch(e => { console.warn('Raytrace error:', e); hideSpinner(); });
+    }).catch(e => { console.warn('Raytrace error:', e); setStatus('Raytrace failed. Try again.', 'error'); hideSpinner(); });
   }
 
   function updatePolarLabel() {
@@ -519,6 +630,7 @@ async function main() {
       // Tiles not loaded yet — flash pin button red briefly
       pinBtn.style.background = '#a33'; pinBtn.style.borderColor = '#f66';
       setTimeout(() => { pinBtn.style.background = ''; pinBtn.style.borderColor = ''; }, 400);
+      setStatus('Tiles still loading; try placing again.', 'warn');
       return;
     }
     ctCartesian = cart;
@@ -531,7 +643,9 @@ async function main() {
     if (!hasPoint) {
       hasPoint = true;
       showPolar();
+      placementHint.style.display = 'none';
     }
+    setStatus('Point placed. Running analysis…', 'warn');
     runRaytrace();
   }
   // Right-click places point on desktop (no placement mode needed)
@@ -547,11 +661,13 @@ async function main() {
     placementMode = true;
     pinBtn.classList.add('active');
     viewer.scene.canvas.style.cursor = 'crosshair';
+    setStatus('Placement mode on: tap map to place point.', 'warn');
   }
   function exitPlacementMode() {
     placementMode = false;
     pinBtn.classList.remove('active');
     viewer.scene.canvas.style.cursor = '';
+    if (!skyview?.pct) setStatus('Ready.', '');
   }
 
   pinBtn.addEventListener('click', () => {
@@ -592,13 +708,14 @@ async function main() {
         const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`);
         const d=await r.json();
         if(d.length>0){flyLat=+d[0].lat;flyLon=+d[0].lon;label=d[0].display_name.split(',').slice(0,3).join(',');}
-        else{searchInput.style.borderColor='#f66';setTimeout(()=>searchInput.style.borderColor='#555',1500);return;}
-      }catch(err){searchInput.style.borderColor='#f66';setTimeout(()=>searchInput.style.borderColor='#555',1500);return;}
+        else{searchInput.style.borderColor='#f66';setTimeout(()=>searchInput.style.borderColor='#555',1500);setStatus('No matching location found.', 'error');return;}
+      }catch(err){searchInput.style.borderColor='#f66';setTimeout(()=>searchInput.style.borderColor='#555',1500);setStatus('Search failed. Check connection.', 'error');return;}
     }
     if(flyLat!==undefined){
       searchInput.value=label||`${flyLat.toFixed(6)}, ${flyLon.toFixed(6)}`;
       searchInput.style.borderColor='#4c4';setTimeout(()=>searchInput.style.borderColor='#555',2000);
       searchInput.blur();
+      setStatus('Location found. Camera moving…', 'success');
       viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(flyLon,flyLat,300),
         orientation:{heading:Cesium.Math.toRadians(-30),pitch:Cesium.Math.toRadians(-45),roll:0},duration:2});
     }
