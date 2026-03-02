@@ -104,13 +104,33 @@ Same layout on mobile and desktop:
 
 **Hosted** — open [0v9n.github.io/skyview/skyview-standalone.html](https://0v9n.github.io/skyview/skyview-standalone.html)
 
-**Local** — the bundled API key is restricted to the hosted URL above. To run locally, get your own [Google Maps API key](https://developers.google.com/maps/documentation/tile/get-api-key) and replace it in the HTML:
+**Local** — a local-development API key is bundled for running this repo on localhost. If needed, you can still use your own [Google Maps API key](https://developers.google.com/maps/documentation/tile/get-api-key) by replacing it in the HTML:
 
 ```js
 const sceneConfig = { api_key: 'YOUR_API_KEY_HERE', ... };
 ```
 
 Then run `python3 serve.py` (opens browser automatically on `:8090`)
+
+### Desktop + mobile validation
+
+To verify zoom-flow parity in both profiles with the built-in benchmark hook:
+
+1. Start a local server:
+
+```bash
+python3 -m http.server 8090 --bind 0.0.0.0
+```
+
+2. Run the benchmark script (requires Python Playwright):
+
+```bash
+python3 scripts_zoom_benchmark.py --url http://localhost:8090/skyview-standalone.html --trials 5
+```
+
+This prints desktop/mobile medians and `%` step overhead for mobile vs desktop.
+
+If Python Playwright is unavailable, the script prints a JSON `status: "skipped"` payload with manual console commands so you can still test desktop/mobile quickly from browser DevTools.
 
 ### Controls
 
