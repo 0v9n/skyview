@@ -237,7 +237,7 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
     <div class="sheetRow"><span style="color:#c8d4e8; min-width:30px;">dH</span><input id="dhSlider" type="range" min="0" max="40" step="0.1" value="0"><span id="dhSliderValue" style="color:#e8e8e8; min-width:42px; text-align:right;">0.0</span></div>
     <button id="dhClose" aria-label="Close height slider">Done</button>
   </div>
-  <div id="statusLine" role="status" aria-live="polite">Ready.</div>
+  <div id="statusLineModal" role="status" aria-live="polite">Ready.</div>
 </div>
 <script>
 // ============================================================
@@ -250,7 +250,8 @@ const OV_DPR = IS_MOBILE ? 1 : devicePixelRatio;
 // SKYVIEW CONFIG
 // ============================================================
 const MIN_ELEV_DEG = 35, DOME_R = 5, RAY_RANGE = 100;
-const AZ_N = IS_MOBILE ? 36 : 72, EL_N = IS_MOBILE ? 10 : 15;
+const AZ_N = IS_MOBILE ? 24 : 48, EL_N = IS_MOBILE ? 8 : 12;
+const RAYTRACE_ROW_CHUNK = IS_MOBILE ? 3 : 6;
 const BEAM_HALF_ANGLE_DEG = 55, DEFAULT_PITCH_DEG = 15;
 const PRESET_ANCHOR = { lat: 47.6695, lon: -122.1055 };
 const RANDOM_SINGLE = { lat: 40.7486, lon: -73.9857, dH: 8, yaw: 35, pitch: DEFAULT_PITCH_DEG }; // Midtown Manhattan
@@ -272,40 +273,50 @@ const _rtNorm = new Cesium.Cartesian3();
 const _rtAxis = new Cesium.Cartesian3();
 const _rtWDir = new Cesium.Cartesian3();
 
-function computeSkyMask(viewer, ctCart, enuTx, pitchDeg, yawDeg) {
+async function computeSkyMaskAsync(viewer, ctCart, enuTx, pitchDeg, yawDeg, shouldAbort) {
   const minEl = MIN_ELEV_DEG*Math.PI/180, maxEl = Math.PI/2;
   const axis = beamAxis(pitchDeg, yawDeg);
   Cesium.Cartesian3.normalize(axis, _rtAxis);
   const beamCos = Math.cos(BEAM_HALF_ANGLE_DEG*Math.PI/180);
   const results = []; let clear=0, total=0;
 
-  for (let ai=0; ai<AZ_N; ai++) {
-    const row = [], az = (ai/AZ_N)*2*Math.PI;
-    for (let ei=0; ei<EL_N; ei++) {
-      const el = minEl + (ei/(EL_N-1))*(maxEl-minEl);
-      _rtEnu.x = Math.sin(az)*Math.cos(el); _rtEnu.y = Math.cos(az)*Math.cos(el); _rtEnu.z = Math.sin(el);
-      Cesium.Cartesian3.normalize(_rtEnu, _rtNorm);
-      const inside = Cesium.Cartesian3.dot(_rtNorm, _rtAxis) >= beamCos;
+  for (let ai=0; ai<AZ_N; ai+=RAYTRACE_ROW_CHUNK) {
+    if (shouldAbort && shouldAbort()) return null;
+    const endAi = Math.min(AZ_N, ai + RAYTRACE_ROW_CHUNK);
+    for (let a=ai; a<endAi; a++) {
+      const row = [], az = (a/AZ_N)*2*Math.PI;
+      for (let ei=0; ei<EL_N; ei++) {
+        const el = minEl + (ei/(EL_N-1))*(maxEl-minEl);
+        _rtEnu.x = Math.sin(az)*Math.cos(el); _rtEnu.y = Math.cos(az)*Math.cos(el); _rtEnu.z = Math.sin(el);
+        Cesium.Cartesian3.normalize(_rtEnu, _rtNorm);
+        const inside = Cesium.Cartesian3.dot(_rtNorm, _rtAxis) >= beamCos;
 
-      let hit=false, hitDist=RAY_RANGE;
-      if (inside) {
-        Cesium.Matrix4.multiplyByPointAsVector(enuTx, _rtEnu, _rtWDir);
-        Cesium.Cartesian3.normalize(_rtWDir, _rtWDir);
-        const pick = viewer.scene.pickFromRay(new Cesium.Ray(ctCart, _rtWDir), []);
-        if (pick && pick.position) {
-          const d = Cesium.Cartesian3.distance(ctCart, pick.position);
-          if (d > 0.3 && d < RAY_RANGE) { hit=true; hitDist=d; }
+        let hit=false, hitDist=RAY_RANGE;
+        if (inside) {
+          Cesium.Matrix4.multiplyByPointAsVector(enuTx, _rtEnu, _rtWDir);
+          Cesium.Cartesian3.normalize(_rtWDir, _rtWDir);
+          const pick = viewer.scene.pickFromRay(new Cesium.Ray(ctCart, _rtWDir), []);
+          if (pick && pick.position) {
+            const d = Cesium.Cartesian3.distance(ctCart, pick.position);
+            if (d > 0.3 && d < RAY_RANGE) { hit=true; hitDist=d; }
+          }
+          total++;
+          if (!hit) clear++;
         }
-        results.push(row);
+        row.push({
+          inside,
+          hit,
+          hitDist,
+          az,
+          el,
+          enuDir: Cesium.Cartesian3.clone(_rtNorm),
+        });
       }
-      if (ai < AZ_N) {
-        setTimeout(processChunk, 0); // yield to browser
-      } else {
-        resolve({results, clear, total, pct: total>0?(100*clear/total).toFixed(1):'N/A'});
-      }
+      results.push(row);
     }
-    processChunk();
-  });
+    if (endAi < AZ_N) await new Promise(r => setTimeout(r, 0));
+  }
+  return {results, clear, total, pct: total>0?(100*clear/total).toFixed(1):'N/A'};
 }
 
 function visibleCell(cell) { return cell.inside && !cell.hit; }
@@ -590,7 +601,7 @@ async function main() {
   resizeOverlay();
   window.addEventListener('resize', resizeOverlay);
 
-  const sceneConfig = { api_key: 'GOOGLE_MAPS_API_KEY', lat: 47.6695, lon: -122.1055 };
+  const sceneConfig = { api_key: 'AIzaSyCWHeBH9emavlGBH9c-yXHIKT_CCDDJH4A', lat: 47.6695, lon: -122.1055 };
 
   Cesium.GoogleMaps.defaultApiKey = sceneConfig.api_key;
   Cesium.RequestScheduler.requestsByServer["tile.googleapis.com:443"] = IS_MOBILE ? 10 : 18;
@@ -706,7 +717,8 @@ async function main() {
     viewer.scene.primitives.add(tileset);
   } catch(e) {
     console.warn('Google 3D tiles failed:', e);
-    setStatus('Could not load Google 3D tiles.', 'error');
+    const detail = (e && (e.message || e.toString())) ? String(e.message || e.toString()) : 'unknown error';
+    setStatus(`Could not load Google 3D tiles: ${detail}`, 'error');
   }
 
   // Camera
@@ -732,7 +744,8 @@ async function main() {
 
   function getSelectedObserver() { return observers[selectedObserverId] || observers.A; }
   function hasA() { return !!observers.A.cart; }
-  function hasB() { return !!observers.B; }
+  function hasBSlot() { return !!observers.B; }
+  function hasB() { return !!observers.B?.cart; }
 
   function updateObserverUI() {
     const o = getSelectedObserver();
@@ -826,27 +839,43 @@ async function main() {
     else setStatus(`Clear sky ${activeMask.pct}%`, 'success');
   }
 
-  let raytraceId = 0; // increments on each request, stale ones abort
+  let raytraceTimer = null;
+  let raytraceToken = 0;
 
   function runRaytrace() {
     if (!hasA()) return;
-    // Debounce — always schedule the latest, cancel previous
     if (raytraceTimer) clearTimeout(raytraceTimer);
     showSpinner();
-    raytraceTimer = requestAnimationFrame(() => { raytraceTimer = setTimeout(() => {
+    const token = ++raytraceToken;
+    raytraceTimer = setTimeout(async () => {
       try {
-        const maskById = {};
+        const jobs = [];
         for (const id of ['A','B']) {
           const o = observers[id];
           if (!o || !o.cart) continue;
           const gc = Cesium.Cartographic.fromCartesian(o.cart);
           const raised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + o.dH);
           const enuTx = Cesium.Transforms.eastNorthUpToFixedFrame(raised);
-          maskById[id] = computeSkyMask(viewer, raised, enuTx, o.pitch, o.yaw);
-          maskById[id]._azDeg = o.yaw;
-          maskById[id]._raised = raised;
-          maskById[id]._enuTx = enuTx;
+          jobs.push(
+            computeSkyMaskAsync(viewer, raised, enuTx, o.pitch, o.yaw, () => token !== raytraceToken)
+              .then(mask => ({ id, mask, yaw: o.yaw, raised, enuTx }))
+          );
         }
+
+        const resolved = await Promise.all(jobs);
+        if (token !== raytraceToken) return;
+
+        const maskById = {};
+        for (const item of resolved) {
+          if (!item?.mask) return;
+          maskById[item.id] = item.mask;
+          maskById[item.id]._azDeg = item.yaw;
+          maskById[item.id]._raised = item.raised;
+          maskById[item.id]._enuTx = item.enuTx;
+        }
+
+        if (!maskById.A) return;
+
         derived = null;
         if (maskById.A && maskById.B) derived = computeDerivedMasks(maskById.A, maskById.B);
 
@@ -869,6 +898,7 @@ async function main() {
         lastRaisedCart = raised;
         lastEnuTx = enuTx;
         drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, raised, enuTx, activeMask, overlayMode, activeObserver.yaw);
+        drawPointMarker(false);
         polarTabState.showTabs = hasB();
         polarTabState.activeMode = overlayMode;
         polarTabState.centerLabel = selectedObserverId;
@@ -887,9 +917,10 @@ async function main() {
       } catch(e) {
         console.warn('Raytrace error:', e);
         setStatus('Raytrace failed. Try again.', 'error');
+      } finally {
+        if (token === raytraceToken) hideSpinner();
       }
-      hideSpinner();
-    }).catch(e => { console.warn('Raytrace error:', e); setStatus('Raytrace failed. Try again.', 'error'); hideSpinner(); });
+    }, IS_MOBILE ? 16 : 8);
   }
 
   // Camera-idle overlay
@@ -897,24 +928,45 @@ async function main() {
   let lastCameraPos = new Cesium.Cartesian3();
   const IDLE_DELAY = IS_MOBILE ? 200 : 100;
 
-  function drawPointMarker() {
-    const o = getSelectedObserver();
-    if (!o?.cart) return;
-    const gc = Cesium.Cartographic.fromCartesian(o.cart);
-    const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + o.dH);
-    const sp = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, ctRaised);
-    ovCtx.clearRect(0, 0, ovCanvas.width, ovCanvas.height);
-    if (!sp) return;
-    const x = sp.x * OV_DPR, y = sp.y * OV_DPR;
-    ovCtx.beginPath(); ovCtx.arc(x, y, 6*OV_DPR, 0, Math.PI*2);
-    ovCtx.fillStyle = 'cyan'; ovCtx.fill();
-    ovCtx.strokeStyle = 'white'; ovCtx.lineWidth = 2; ovCtx.stroke();
+  function drawPointMarker(clearCanvas = true) {
+    if (clearCanvas) ovCtx.clearRect(0, 0, ovCanvas.width, ovCanvas.height);
+
+    const markerDefs = [
+      { id: 'A', color: '#22e7ff' },
+      { id: 'B', color: '#ff9d2e' },
+    ];
+
+    for (const def of markerDefs) {
+      const o = observers[def.id];
+      if (!o?.cart) continue;
+      const gc = Cesium.Cartographic.fromCartesian(o.cart);
+      const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + o.dH);
+      const sp = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, ctRaised);
+      if (!sp) continue;
+
+      const x = sp.x * OV_DPR, y = sp.y * OV_DPR;
+      const radius = (def.id === selectedObserverId ? 7 : 6) * OV_DPR;
+      ovCtx.beginPath();
+      ovCtx.arc(x, y, radius, 0, Math.PI*2);
+      ovCtx.fillStyle = def.color;
+      ovCtx.fill();
+      ovCtx.strokeStyle = 'white';
+      ovCtx.lineWidth = 2;
+      ovCtx.stroke();
+
+      ovCtx.fillStyle = 'white';
+      ovCtx.font = `${Math.round(10 * OV_DPR)}px system-ui`;
+      ovCtx.textAlign = 'center';
+      ovCtx.textBaseline = 'middle';
+      ovCtx.fillText(def.id, x, y - (11 * OV_DPR));
+    }
   }
 
   function redrawOverlayNow() {
     if (!activeMask || !lastRaisedCart || !lastEnuTx) return;
     ovCanvas.style.opacity = '1';
     drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, lastRaisedCart, lastEnuTx, activeMask, overlayMode, getSelectedObserver().yaw);
+    drawPointMarker(false);
   }
 
   viewer.scene.postRender.addEventListener(() => {
@@ -1074,13 +1126,26 @@ async function main() {
 
   // Multi-observer controls
   function armPlaceB() {
-    if (hasB()) return;
-    observers.B = { id:'B', lat:null, lon:null, dH:getSelectedObserver().dH, yaw:(observers.A.yaw+180)%360, pitch:observers.A.pitch, cart:null, carto:null };
+    if (!hasBSlot()) {
+      observers.B = {
+        id:'B',
+        lat:null,
+        lon:null,
+        dH:getSelectedObserver().dH,
+        yaw:(observers.A.yaw+180)%360,
+        pitch:observers.A.pitch,
+        cart:null,
+        carto:null
+      };
+    }
     placementMode = true;
     placementSlot = 'B';
+    selectedObserverId = 'B';
     pinBtn.classList.add('active');
+    viewer.scene.canvas.style.cursor = 'crosshair';
     setStatus('Placement mode B: tap map to place observer B.', 'warn');
     updateObserverUI();
+    updatePolarLabel();
   }
   function swapObservers() {
     if (!hasB() || !observers.B?.cart) return;
@@ -1100,16 +1165,33 @@ async function main() {
   }
   const presetBtn = document.getElementById('presetBtn');
   if (presetBtn) presetBtn.addEventListener('click', togglePresetSheet);
-  document.getElementById('moreBtn').addEventListener('click', togglePresetSheet);
-  document.getElementById('psPlaceA').addEventListener('click', ()=>{ enterPlacementMode(); closePresetSheet(); });
-  document.getElementById('psSingle').addEventListener('click', ()=>{ applyPreset('single'); closePresetSheet(); });
-  document.getElementById('psDual').addEventListener('click', ()=>{ applyPreset('dual'); closePresetSheet(); });
-  document.getElementById('psRndSingle').addEventListener('click', ()=>{ applyPreset('randomSingle'); closePresetSheet(); });
-  document.getElementById('psRndDual').addEventListener('click', ()=>{ applyPreset('randomDual'); closePresetSheet(); });
-  document.getElementById('psClearB').addEventListener('click', ()=>{ applyPreset('clearB'); closePresetSheet(); });
-  document.getElementById('psPlaceB').addEventListener('click', ()=>{ armPlaceB(); closePresetSheet(); });
-  document.getElementById('psSwap').addEventListener('click', ()=>{ swapObservers(); closePresetSheet(); });
-  document.getElementById('psClose').addEventListener('click', closePresetSheet);
+  const moreBtn = document.getElementById('moreBtn');
+  moreBtn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    togglePresetSheet();
+  });
+
+  const presetActions = {
+    psPlaceA: () => enterPlacementMode(),
+    psSingle: () => applyPreset('single'),
+    psDual: () => applyPreset('dual'),
+    psRndSingle: () => applyPreset('randomSingle'),
+    psRndDual: () => applyPreset('randomDual'),
+    psClearB: () => applyPreset('clearB'),
+    psPlaceB: () => armPlaceB(),
+    psSwap: () => swapObservers(),
+    psClose: () => {},
+  };
+
+  presetSheet.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const action = presetActions[btn.id];
+    if (!action) return;
+    action();
+    closePresetSheet();
+  });
 
   // ============================================================
   // POLAR PLOT DRAG — swipe/drag to aim azimuth
@@ -1268,7 +1350,15 @@ async function main() {
 
   console.log('Skyview raytrace viewer ready');
 }
-main().catch(e=>console.error(e));
+main().catch(e => {
+  console.error(e);
+  const line = document.getElementById('statusLine');
+  if (line) {
+    const msg = (e && (e.message || e.toString())) ? String(e.message || e.toString()) : 'unknown startup error';
+    line.className = 'error';
+    line.textContent = `Startup failed: ${msg}`;
+  }
+});
 </script>
 </body>
 </html>
