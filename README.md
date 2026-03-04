@@ -130,6 +130,17 @@ python3 scripts_zoom_benchmark.py --url http://localhost:8090/skyview-standalone
 
 This prints desktop/mobile medians and `%` step overhead for mobile vs desktop.
 
+### Implementation notes (UX presets)
+
+Built-in scene presets used for screenshots and quick reset:
+
+1. **Tower single** (anchor)
+2. **Tower dual** (side offsets)
+3. **Random single** (predefined lat/lon + dH/yaw)
+4. **Random dual** (predefined lat/lon + offsets + `yawB = yawA + 180`)
+
+On first load, preset **1 (Tower single)** is auto-applied and camera framing is tuned to a neighborhood-level view with a slight vertical offset so the tower remains clear above the bottom bar.
+
 If Python Playwright is unavailable, the script prints a JSON `status: "skipped"` payload with manual console commands so you can still test desktop/mobile quickly from browser DevTools.
 
 ### Controls

@@ -14,9 +14,21 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 
 
 
-/* Floating polar plot — top-right quadrant, constrained to 2x2 grid */
+/* UI TOKENS (locked grid) */
+:root {
+  --ui-space-6: 6px;
+  --ui-space-8: 8px;
+  --ui-space-12: 12px;
+  --control-h: clamp(34px, 9.5vw, 40px);
+  --control-r: calc(var(--control-h) / 4);
+  --bar-font: clamp(12px, 3.2vw, 14px);
+  --bar-font-strong: clamp(13px, 3.6vw, 16px);
+  --ui-font-secondary: 12px;
+}
+
+/* Floating polar widget (top-right) */
 #polarFloat {
-  position: fixed; top: 10px; right: 10px; z-index: 9;
+  position: fixed; top: 12px; right: 12px; z-index: 9;
   width: min(45vw, 45vh); height: min(45vw, 45vh);
   max-width: 280px; max-height: 280px;
   display: none; /* shown after first point */
@@ -29,44 +41,83 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
   white-space: nowrap;
 }
 
-/* Bottom bar: compact, centered */
+/* Bottom bar: fixed anchor and width */
 #bottomBar {
-  position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 15;
-  background: rgba(10,12,20,0.88); border: 1px solid #333; border-radius: 10px;
-  padding: 6px 12px; backdrop-filter: blur(6px);
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  position: fixed;
+  inset-inline-start: max(12px, env(safe-area-inset-left));
+  inset-inline-end: max(12px, env(safe-area-inset-right));
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 15;
+  max-width: 100%;
+  overflow: hidden;
+  background: rgba(10,12,20,0.88); border: none; border-radius: var(--control-r);
+  box-sizing: border-box;
+  padding: var(--ui-space-8); box-shadow: 0 4px 12px rgba(0,0,0,0.28); backdrop-filter: blur(6px);
   touch-action: manipulation;
 }
 #bottomBar .bar-row {
-  display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px;
+  display: flex; flex-direction: row; align-items: center; gap: clamp(6px, 1.6vw, 10px);
+  flex-wrap: nowrap;
 }
+#bottomBar .bar-row > * { min-width: 0; }
 #bottomBar #searchInput {
-  background: #1a1d28; color: #eee; border: 1px solid #444; border-radius: 6px;
-  padding: 8px 12px; font-size: 13px; outline: none; flex: 1; max-width: 320px;
+  background: #1a1d28; color: #eee; border: 1px solid #444; border-radius: var(--control-r);
+  padding: 0 10px; font-size: var(--bar-font); outline: none;
+  width: min(42vw, 220px);
+  min-width: 96px;
+  flex: 1 1 auto;
+  height: var(--control-h); line-height: var(--control-h);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 }
 #bottomBar #searchInput:focus { border-color: #4c4; }
-#bottomBar #searchInput::placeholder { color: #666; }
+#bottomBar #searchInput::placeholder { color: #666; font-size: var(--bar-font); }
 #bottomBar #pinBtn {
-  width: 36px; height: 36px; border-radius: 50%; border: 2px solid #555;
+  width: clamp(32px, 9vw, 40px); aspect-ratio: 1; height: var(--control-h); border-radius: var(--control-r); border: 1px solid #444;
   background: #2a2d38; color: #ccc; font-size: 18px;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s; flex-shrink: 0;
+  transition: all 0.15s; flex: 0 0 auto; min-width: 0;
 }
 #bottomBar #pinBtn:hover { background: #3a3d48; border-color: #888; }
 #bottomBar #pinBtn.active { background: rgba(40,180,80,0.85); border-color: #4c4; color: #fff; }
-#bottomBar label { color: #bbb; font-size: 12px; display: flex; align-items: center; gap: 3px; white-space: nowrap; }
-#bottomBar input[type=number] {
-  background: #1a1d28; color: #eee; border: 1px solid #444; border-radius: 5px;
-  padding: 5px 6px; font-size: 13px; outline: none;
+#bottomBar .tinyBtn {
+  width: clamp(32px, 9vw, 40px); aspect-ratio: 1; height: var(--control-h); border-radius: var(--control-r);
+  border: 1px solid #444; background: #2a2d38; color: #d6d6d6; cursor: pointer;
+  flex: 0 0 auto; min-width: 0;
 }
-#bottomBar .row { display: flex; align-items: center; gap: 2px; }
-#bottomBar .row button {
-  padding: 4px 8px; font-size: 14px; cursor: pointer;
-  background: #2a2d38; color: #ccc; border: 1px solid #444; border-radius: 4px;
-  min-width: 30px; min-height: 30px;
+#bottomBar .tinyBtn.active { border-color: #6cb2ff; color: #9fd1ff; }
+#bottomBar .seg { display: inline-flex; gap: 4px; }
+#bottomBar .hide { display: none !important; }
+#bottomBar .iconsCol { display:flex; gap: var(--ui-space-8); flex-shrink: 0; }
+#bottomBar .dhWrap { display:flex; justify-content: center; }
+#dhGroup {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: clamp(96px, 26vw, 128px); height: var(--control-h);
+  border: 1px solid #444; border-radius: var(--control-r);
+  background: #1a1d28;
+  padding: 0 8px;
+  flex: 0 0 auto;
+  min-width: 0;
 }
-#bottomBar .row button:hover { background: #3a3d48; }
-#bottomBar .sep { width: 1px; height: 24px; background: #444; flex-shrink: 0; }
+#dhGroup .lbl { color:#bbb; font-size:12px; margin-right: 2px; }
+#dhGroup button {
+  width: 20px; height: 20px; border: 0; background: transparent; color:#ddd; cursor: pointer;
+  font-size: 16px; line-height: 20px; padding: 0;
+}
+#dhGroup input {
+  width: 34px; text-align:center; border: 0; background: transparent;
+  color:#e8e8e8; height: 20px; font-size: var(--bar-font-strong); padding: 0;
+}
+#dhGroup .unit { color:#768299; font-size:11px; }
+#dhCompactBtn {
+  display: none;
+  width: clamp(96px, 26vw, 128px); height: var(--control-h);
+  border: 1px solid #444; border-radius: var(--control-r);
+  background: #1a1d28; color: #d6d6d6;
+  font-size: var(--bar-font);
+}
+#moreBtn { display: inline-flex; }
 /* Processing state — pin button pulses */
 #bottomBar #pinBtn.processing {
   background: rgba(255,180,40,0.85); border-color: #fc4; color: #fff;
@@ -76,8 +127,9 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 @keyframes pinPulse { from { opacity: 0.6; } to { opacity: 1; } }
 
 #statusLine {
+  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 11;
   color: #d5dbe8; font-size: 12px; min-height: 16px;
-  max-width: 420px; text-align: center;
+  max-width: 320px; text-align: center; pointer-events: none;
 }
 #statusLine.warn { color: #ffd166; }
 #statusLine.error { color: #ff7b7b; }
@@ -91,18 +143,55 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 }
 #placementHint b { color: #9fd1ff; }
 
+#presetSheet {
+  position: fixed; left: 50%; bottom: 70px; transform: translateX(-50%);
+  background: rgba(10,12,20,0.95); border: 1px solid #3a4658; border-radius: 10px;
+  padding: 8px; z-index: 20; min-width: 220px;
+}
+#presetSheet.hide { display: none; }
+#presetSheet button {
+  width: 100%; text-align: left; margin: 3px 0; padding: 7px 9px;
+  border: 1px solid #384456; border-radius: 7px;
+  background: #1a2230; color: #dbe5f4;
+}
+#dhModal {
+  position: fixed; inset: 0; z-index: 25;
+  background: rgba(0,0,0,0.55);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: var(--ui-space-12);
+}
+#dhModal.hide { display: none; }
+#dhModal .sheet {
+  width: min(420px, 100%);
+  background: rgba(10,12,20,0.96); border: 1px solid #3a4658;
+  border-radius: var(--control-r); padding: var(--ui-space-12);
+}
+#dhModal .sheetRow { display: flex; align-items: center; gap: var(--ui-space-8); }
+#dhSlider { width: 100%; }
+#dhClose {
+  width: 100%; margin-top: var(--ui-space-8);
+  height: var(--control-h); border-radius: var(--control-r);
+  border: 1px solid #444; background: #2a2d38; color: #d6d6d6;
+}
+
 .cesium-viewer-toolbar, .cesium-viewer-animationContainer,
 .cesium-viewer-timelineContainer, .cesium-viewer-bottom,
 .cesium-viewer-fullscreenContainer { display: none !important; }
 
 @media (max-width: 600px) {
   #polarFloat { top: 8px; right: 8px; }
-  #bottomBar { padding: 6px 9px; gap: 4px; }
-  #bottomBar #searchInput { width: 150px; padding: 6px 9px; font-size: 12px; }
-  #bottomBar label { font-size: 11px; }
-  #bottomBar #pinBtn { width: 32px; height: 32px; font-size: 16px; }
-  #statusLine { font-size: 11px; max-width: 320px; }
+  #statusLine { font-size: 11px; max-width: 260px; top: calc(env(safe-area-inset-top, 0px) + 8px); }
   #placementHint { top: 8px; left: 8px; font-size: 11px; }
+}
+
+@media (max-width: 359px) {
+  #dhGroup .lbl, #dhGroup .unit { display:none; }
+  #bottomBar #pinBtn { display: none; }
+}
+
+@media (max-width: 320px) {
+  #dhGroup { display: none; }
+  #dhCompactBtn { display: inline-flex; align-items: center; justify-content: center; }
 }
 </style>
 </head>
@@ -118,21 +207,35 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 <!-- Unified bottom bar -->
 <div id="bottomBar">
   <div class="bar-row">
-    <input type="text" id="searchInput" placeholder="Search location..." spellcheck="false" aria-label="Search location by name or lat lon">
-    <button id="pinBtn" title="Place point" aria-label="Toggle point placement mode">&#9906;</button>
-  </div>
-  <div class="bar-row">
-    <label>Az <span class="row">
-      <button id="btnAzMinus" aria-label="Decrease azimuth">&minus;</button>
-      <input type="number" id="numAz" value="0" min="0" max="355" step="10" style="width:48px;text-align:center;" aria-label="Azimuth in degrees">
-      <button id="btnAzPlus" aria-label="Increase azimuth">+</button><span style="color:#666">&deg;</span>
-    </span></label>
-    <div class="sep"></div>
-    <label>&Delta;H <span class="row">
+    <input type="text" id="searchInput" placeholder="🔎 Search..." spellcheck="false" aria-label="Search location by name or lat lon">
+    <div class="dhWrap"><div id="dhGroup" aria-label="Height adjustment">
+      <span class="lbl">dH</span>
       <button id="btnHMinus" aria-label="Decrease height">&minus;</button>
-      <input type="number" id="numHeight" value="0" min="0" max="40" step="0.1" style="width:42px;text-align:center;" aria-label="Height above ground in meters">
-      <button id="btnHPlus" aria-label="Increase height">+</button><span style="color:#666">m</span>
-    </span></label>
+      <input type="number" id="numHeight" value="0" min="0" max="40" step="0.1" aria-label="Height above ground in meters">
+      <button id="btnHPlus" aria-label="Increase height">+</button><span class="unit">m</span>
+    </div><button id="dhCompactBtn" aria-label="Adjust height">dH</button></div>
+    <div class="iconsCol">
+      <button id="pinBtn" title="Place point" aria-label="Toggle point placement mode">&#9906;</button>
+      <button id="moreBtn" class="tinyBtn" title="More" aria-label="More">⋯</button>
+    </div>
+  </div>
+</div>
+<div id="statusLine" role="status" aria-live="polite">Ready.</div>
+<div id="presetSheet" class="hide" aria-label="Presets and actions">
+  <button id="psPlaceA">Place A</button>
+  <button id="psSingle">Preset 1: Tower single</button>
+  <button id="psDual">Preset 2: Tower dual</button>
+  <button id="psRndSingle">Preset 3: Random single</button>
+  <button id="psRndDual">Preset 4: Random dual</button>
+  <button id="psClearB">Clear B</button>
+  <button id="psPlaceB">Place B</button>
+  <button id="psSwap">A↔B swap</button>
+  <button id="psClose">Close</button>
+</div>
+<div id="dhModal" class="hide" aria-label="Height slider">
+  <div class="sheet">
+    <div class="sheetRow"><span style="color:#c8d4e8; min-width:30px;">dH</span><input id="dhSlider" type="range" min="0" max="40" step="0.1" value="0"><span id="dhSliderValue" style="color:#e8e8e8; min-width:42px; text-align:right;">0.0</span></div>
+    <button id="dhClose" aria-label="Close height slider">Done</button>
   </div>
   <div id="statusLine" role="status" aria-live="polite">Ready.</div>
 </div>
@@ -148,7 +251,12 @@ const OV_DPR = IS_MOBILE ? 1 : devicePixelRatio;
 // ============================================================
 const MIN_ELEV_DEG = 35, DOME_R = 5, RAY_RANGE = 100;
 const AZ_N = IS_MOBILE ? 36 : 72, EL_N = IS_MOBILE ? 10 : 15;
-const BEAM_HALF_ANGLE_DEG = 55, PITCH_DEG = 15;
+const BEAM_HALF_ANGLE_DEG = 55, DEFAULT_PITCH_DEG = 15;
+const PRESET_ANCHOR = { lat: 47.6695, lon: -122.1055 };
+const RANDOM_SINGLE = { lat: 40.7486, lon: -73.9857, dH: 8, yaw: 35, pitch: DEFAULT_PITCH_DEG }; // Midtown Manhattan
+const RANDOM_DUAL = {
+  lat: 48.8584, lon: 2.2945, offsetLon: 0.00008, dH: 5, yawA: 20, pitch: DEFAULT_PITCH_DEG,
+}; // Eiffel district
 
 function beamAxis(pitchDeg, azDeg) {
   const p = pitchDeg * Math.PI / 180, a = azDeg * Math.PI / 180;
@@ -164,39 +272,29 @@ const _rtNorm = new Cesium.Cartesian3();
 const _rtAxis = new Cesium.Cartesian3();
 const _rtWDir = new Cesium.Cartesian3();
 
-// Chunked async raytrace — yields to browser every CHUNK_SIZE rows
-const CHUNK_SIZE = IS_MOBILE ? 6 : 12;
+function computeSkyMask(viewer, ctCart, enuTx, pitchDeg, yawDeg) {
+  const minEl = MIN_ELEV_DEG*Math.PI/180, maxEl = Math.PI/2;
+  const axis = beamAxis(pitchDeg, yawDeg);
+  Cesium.Cartesian3.normalize(axis, _rtAxis);
+  const beamCos = Math.cos(BEAM_HALF_ANGLE_DEG*Math.PI/180);
+  const results = []; let clear=0, total=0;
 
-function computeSkyviewAsync(viewer, ctCart, enuTx, pitchDeg, azDeg) {
-  return new Promise((resolve) => {
-    const minEl = MIN_ELEV_DEG*Math.PI/180, maxEl = Math.PI/2;
-    const axis = beamAxis(pitchDeg, azDeg);
-    Cesium.Cartesian3.normalize(axis, _rtAxis);
-    const beamCos = Math.cos(BEAM_HALF_ANGLE_DEG*Math.PI/180);
-    const results = []; let clear=0, total=0, ai=0;
+  for (let ai=0; ai<AZ_N; ai++) {
+    const row = [], az = (ai/AZ_N)*2*Math.PI;
+    for (let ei=0; ei<EL_N; ei++) {
+      const el = minEl + (ei/(EL_N-1))*(maxEl-minEl);
+      _rtEnu.x = Math.sin(az)*Math.cos(el); _rtEnu.y = Math.cos(az)*Math.cos(el); _rtEnu.z = Math.sin(el);
+      Cesium.Cartesian3.normalize(_rtEnu, _rtNorm);
+      const inside = Cesium.Cartesian3.dot(_rtNorm, _rtAxis) >= beamCos;
 
-    function processChunk() {
-      const end = Math.min(ai + CHUNK_SIZE, AZ_N);
-      for (; ai < end; ai++) {
-        const row = [], az = (ai/AZ_N)*2*Math.PI;
-        for (let ei=0; ei<EL_N; ei++) {
-          const el = minEl + (ei/(EL_N-1))*(maxEl-minEl);
-          _rtEnu.x = Math.sin(az)*Math.cos(el); _rtEnu.y = Math.cos(az)*Math.cos(el); _rtEnu.z = Math.sin(el);
-          Cesium.Cartesian3.normalize(_rtEnu, _rtNorm);
-          const inside = Cesium.Cartesian3.dot(_rtNorm, _rtAxis) >= beamCos;
-
-          let hit=false, hitDist=RAY_RANGE;
-          if (inside) {
-            Cesium.Matrix4.multiplyByPointAsVector(enuTx, _rtEnu, _rtWDir);
-            Cesium.Cartesian3.normalize(_rtWDir, _rtWDir);
-            const pick = viewer.scene.pickFromRay(new Cesium.Ray(ctCart, _rtWDir), []);
-            if (pick && pick.position) {
-              const d = Cesium.Cartesian3.distance(ctCart, pick.position);
-              if (d < RAY_RANGE) { hit=true; hitDist=d; }
-            }
-            total++; if(!hit) clear++;
-          }
-          row.push({inside, hit, hitDist, az, el, enuDir: Cesium.Cartesian3.clone(_rtEnu)});
+      let hit=false, hitDist=RAY_RANGE;
+      if (inside) {
+        Cesium.Matrix4.multiplyByPointAsVector(enuTx, _rtEnu, _rtWDir);
+        Cesium.Cartesian3.normalize(_rtWDir, _rtWDir);
+        const pick = viewer.scene.pickFromRay(new Cesium.Ray(ctCart, _rtWDir), []);
+        if (pick && pick.position) {
+          const d = Cesium.Cartesian3.distance(ctCart, pick.position);
+          if (d > 0.3 && d < RAY_RANGE) { hit=true; hitDist=d; }
         }
         results.push(row);
       }
@@ -210,6 +308,48 @@ function computeSkyviewAsync(viewer, ctCart, enuTx, pitchDeg, azDeg) {
   });
 }
 
+function visibleCell(cell) { return cell.inside && !cell.hit; }
+
+function computeDerivedMasks(maskA, maskB) {
+  const unionResults = [], overlapResults = [], compResults = [];
+  let unionVisible=0, overlapVisible=0, aOnly=0, bOnly=0;
+  for (let ai=0; ai<AZ_N; ai++) {
+    const rowU=[], rowO=[], rowC=[];
+    for (let ei=0; ei<EL_N; ei++) {
+      const ca = maskA.results[ai][ei], cb = maskB.results[ai][ei];
+      const va = visibleCell(ca), vb = visibleCell(cb);
+      const inU = ca.inside || cb.inside;
+      const vU = va || vb;
+      const vO = va && vb;
+      if (vU) unionVisible++;
+      if (vO) overlapVisible++;
+      if (va && !vb) aOnly++;
+      if (vb && !va) bOnly++;
+      rowU.push({inside: inU, hit: inU ? !vU : false, hitDist: Math.min(ca.hitDist, cb.hitDist), az: ca.az, el: ca.el, enuDir: ca.enuDir});
+      rowO.push({inside: inU, hit: inU ? !vO : false, hitDist: Math.min(ca.hitDist, cb.hitDist), az: ca.az, el: ca.el, enuDir: ca.enuDir});
+      // comp: A-assigned visible -> green (hit=false), B-assigned visible -> red (hit=true)
+      // tie-break to A
+      const compVis = va || vb;
+      const assignToA = va;
+      rowC.push({inside: inU, hit: inU ? (compVis ? !assignToA : true) : false, hitDist: Math.min(ca.hitDist, cb.hitDist), az: ca.az, el: ca.el, enuDir: ca.enuDir});
+    }
+    unionResults.push(rowU); overlapResults.push(rowO); compResults.push(rowC);
+  }
+  const improvementPct = maskA.clear > 0 ? ((unionVisible - maskA.clear) / maskA.clear) * 100 : 0;
+  const overlapPct = unionVisible > 0 ? (overlapVisible / unionVisible) * 100 : 0;
+  const shareA = unionVisible > 0 ? ((aOnly + overlapVisible) / unionVisible) * 100 : 0;
+  const shareB = unionVisible > 0 ? (bOnly / unionVisible) * 100 : 0;
+  console.assert(unionVisible >= maskA.clear, 'union area >= A area');
+  console.assert(overlapVisible <= unionVisible, 'overlap area <= union area');
+  console.assert(improvementPct >= -0.0001, 'improvementPct >= 0');
+  return {
+    unionMask: {results: unionResults, clear: unionVisible, total: unionVisible, pct: unionVisible > 0 ? '100.0' : '0.0'},
+    overlapMask: {results: overlapResults, clear: overlapVisible, total: unionVisible, pct: unionVisible > 0 ? (100*overlapVisible/unionVisible).toFixed(1) : '0.0'},
+    compMask: {results: compResults, clear: unionVisible, total: unionVisible, pct: unionVisible > 0 ? '100.0' : '0.0'},
+    improvementPct, overlapPct, shareA, shareB,
+  };
+}
+
 // ============================================================
 // DOME OVERLAY — pre-allocated scratch objects
 // ============================================================
@@ -219,7 +359,7 @@ const _scratchN  = new Cesium.Cartesian3();
 const _scratchN2 = new Cesium.Cartesian3();
 const _scratchCorners = [new Cesium.Cartesian3(), new Cesium.Cartesian3(), new Cesium.Cartesian3(), new Cesium.Cartesian3()];
 
-function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
+function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview, mode='A', yawDeg=0) {
   ctx.clearRect(0, 0, w, h);
   if (!skyview || !ctCart) return;
 
@@ -259,12 +399,12 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
     }
   }
 
-  ctx.fillStyle = 'rgba(220,30,20,0.35)';
+  ctx.fillStyle = mode === 'COMP' ? 'rgba(80,150,255,0.35)' : 'rgba(220,30,20,0.35)';
   ctx.beginPath();
   for (const p of redCells) { ctx.moveTo(p[0],p[1]); ctx.lineTo(p[2],p[3]); ctx.lineTo(p[4],p[5]); ctx.lineTo(p[6],p[7]); ctx.closePath(); }
   ctx.fill();
 
-  ctx.fillStyle = 'rgba(20,200,60,0.2)';
+  ctx.fillStyle = mode === 'COMP' ? 'rgba(40,220,100,0.3)' : 'rgba(20,200,60,0.2)';
   ctx.beginPath();
   for (const p of greenCells) { ctx.moveTo(p[0],p[1]); ctx.lineTo(p[2],p[3]); ctx.lineTo(p[4],p[5]); ctx.lineTo(p[6],p[7]); ctx.closePath(); }
   ctx.fill();
@@ -302,7 +442,7 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
     ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
   }
 
-  Cesium.Cartesian3.normalize(beamAxis(PITCH_DEG, skyview._azDeg||0), _scratchN2);
+  Cesium.Cartesian3.normalize(beamAxis(DEFAULT_PITCH_DEG, skyview._azDeg||0), _scratchN2);
   Cesium.Cartesian3.multiplyByScalar(_scratchN2, DOME_R*0.7, _scratchN2);
   Cesium.Matrix4.multiplyByPoint(enuTx, _scratchN2, _scratchP);
   const axS0 = toScreen(ctCart), axS1 = toScreen(_scratchP);
@@ -310,73 +450,114 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview) {
     ctx.beginPath(); ctx.moveTo(axS0[0],axS0[1]); ctx.lineTo(axS1[0],axS1[1]);
     ctx.strokeStyle = 'rgba(255,220,40,0.8)'; ctx.lineWidth = 3; ctx.stroke();
   }
+
+  if (ctS) {
+    const a = yawDeg * Math.PI / 180;
+    const x2 = ctS[0] + Math.sin(a) * 18;
+    const y2 = ctS[1] - Math.cos(a) * 18;
+    ctx.beginPath();
+    ctx.moveTo(ctS[0], ctS[1]);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
 }
 
 // ============================================================
 // 2D POLAR PLOT
 // ============================================================
-function drawPolarPlot(canvas, skyview, azimuthDeg) {
+function drawPolarPlot(canvas, skyview, azimuthDeg, tabState=null) {
   const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height;
   const cx = w/2, cy = h/2, r = w/2 - 20;
   ctx.clearRect(0, 0, w, h);
 
-  // Transparent background — just a subtle outline
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
-  ctx.fillStyle = 'rgba(10,12,20,0.4)'; ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.stroke();
-
-  if (!skyview) {
-    ctx.fillStyle = '#888'; ctx.font = '14px system-ui';
-    ctx.textAlign = 'center'; ctx.fillText('No data', cx, cy);
-    return;
-  }
-
-  const minEl = MIN_ELEV_DEG * Math.PI / 180, maxEl = Math.PI / 2;
-  const cosMin = Math.cos(minEl);
-
-  for (let ai = 0; ai < AZ_N; ai++) {
-    for (let ei = 0; ei < EL_N - 1; ei++) {
-      const cell = skyview.results[ai][ei];
-      const az0 = (ai/AZ_N)*2*Math.PI, az1 = ((ai+1)/AZ_N)*2*Math.PI;
-      const el0 = minEl + (ei/(EL_N-1))*(maxEl-minEl);
-      const el1 = minEl + ((ei+1)/(EL_N-1))*(maxEl-minEl);
-      const d0 = r * Math.cos(el0) / cosMin;
-      const d1 = r * Math.cos(el1) / cosMin;
-      const ca0 = az0 - Math.PI/2, ca1 = az1 - Math.PI/2;
-
-      ctx.beginPath();
-      ctx.arc(cx, cy, d0, ca0, ca1, false);
-      ctx.arc(cx, cy, d1, ca1, ca0, true);
-      ctx.closePath();
-      ctx.fillStyle = !cell.inside ? 'rgba(40,40,50,0.3)' : cell.hit ? 'rgba(220,40,30,0.75)' : 'rgba(30,180,60,0.55)';
-      ctx.fill();
+  function drawSingle(mask, yawDeg, small=false, ox=0, oy=0, rr=r, showMeta=true) {
+    const cxx = cx + ox, cyy = cy + oy;
+    ctx.beginPath(); ctx.arc(cxx, cyy, rr, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(10,12,20,0.4)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.stroke();
+    if (!mask) return;
+    const minEl = MIN_ELEV_DEG * Math.PI / 180, maxEl = Math.PI / 2;
+    const cosMin = Math.cos(minEl);
+    for (let ai = 0; ai < AZ_N; ai++) {
+      for (let ei = 0; ei < EL_N - 1; ei++) {
+        const cell = mask.results[ai][ei];
+        const az0 = (ai/AZ_N)*2*Math.PI, az1 = ((ai+1)/AZ_N)*2*Math.PI;
+        const el0 = minEl + (ei/(EL_N-1))*(maxEl-minEl);
+        const el1 = minEl + ((ei+1)/(EL_N-1))*(maxEl-minEl);
+        const d0 = rr * Math.cos(el0) / cosMin;
+        const d1 = rr * Math.cos(el1) / cosMin;
+        const ca0 = az0 - Math.PI/2, ca1 = az1 - Math.PI/2;
+        ctx.beginPath();
+        ctx.arc(cxx, cyy, d0, ca0, ca1, false);
+        ctx.arc(cxx, cyy, d1, ca1, ca0, true);
+        ctx.closePath();
+        ctx.fillStyle = !cell.inside ? 'rgba(40,40,50,0.3)' : cell.hit ? 'rgba(220,40,30,0.75)' : 'rgba(30,180,60,0.55)';
+        ctx.fill();
+      }
+    }
+    const revealed = !!(tabState && tabState.showTabs && Date.now() < (tabState.revealUntil || 0));
+    const axAz = yawDeg * Math.PI / 180, axA = axAz - Math.PI/2;
+    ctx.beginPath(); ctx.moveTo(cxx, cyy);
+    ctx.lineTo(cxx + rr*Math.cos(axA), cyy + rr*Math.sin(axA));
+    ctx.strokeStyle = revealed ? 'rgba(255,235,120,0.95)' : 'rgba(255,220,120,0.45)';
+    ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cxx + rr*Math.cos(axA), cyy + rr*Math.sin(axA), 1.8, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,240,170,0.6)'; ctx.fill();
+    if (showMeta) {
+      const clear = parseFloat(mask.pct);
+      const clearColor = clear >= 85 ? '#4c4' : clear >= 78 ? '#fc4' : '#f66';
+      ctx.font = 'bold 24px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(`${mask.pct}%`, cxx + 1, cyy + 1);
+      ctx.fillStyle = clearColor; ctx.fillText(`${mask.pct}%`, cxx, cyy);
+      if (tabState?.statLine) { ctx.font = '11px system-ui'; ctx.fillStyle = 'rgba(210,220,230,0.6)'; ctx.fillText(tabState.statLine, cxx, cyy + 18); }
     }
   }
 
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 0.5;
-  for (let i = 1; i <= 4; i++) { ctx.beginPath(); ctx.arc(cx, cy, r*i/4, 0, Math.PI*2); ctx.stroke(); }
+  if (tabState?.activeMode === 'GRID4' && tabState?.quadMasks) {
+    const qR = r * 0.45, g = r * 0.06;
+    const items = [
+      {k:'A', x:-(qR+g/2), y:-(qR+g/2)},
+      {k:'B', x:+(qR+g/2), y:-(qR+g/2)},
+      {k:'UNION', x:-(qR+g/2), y:+(qR+g/2)},
+      {k:'COMP', x:+(qR+g/2), y:+(qR+g/2)},
+    ];
+    tabState.quadRegions = [];
+    for (const it of items) {
+      const m = tabState.quadMasks[it.k];
+      const yaw = tabState.quadYaw[it.k] || 0;
+      drawSingle(m, yaw, true, it.x, it.y, qR, false);
+      ctx.font = '11px system-ui'; ctx.fillStyle = 'rgba(220,230,240,0.9)'; ctx.textAlign='center';
+      const label = it.k==='UNION'?'∪':it.k==='COMP'?'↔':it.k;
+      ctx.fillText(label, cx+it.x, cy+it.y-qR-10);
+      tabState.quadRegions.push({mode:it.k, x:cx+it.x, y:cy+it.y, r:qR});
+    }
+    return;
+  }
+
+  drawSingle(skyview, azimuthDeg, false, 0, 0, r, true);
 
   ctx.fillStyle = '#aaa'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
   ctx.fillText('N', cx, cy - r - 5); ctx.fillText('S', cx, cy + r + 13);
   ctx.fillText('E', cx + r + 10, cy + 4); ctx.fillText('W', cx - r - 10, cy + 4);
 
-  const axAz = azimuthDeg * Math.PI / 180, axA = axAz - Math.PI/2;
-  ctx.beginPath(); ctx.moveTo(cx, cy);
-  ctx.lineTo(cx + r*0.7*Math.cos(axA), cy + r*0.7*Math.sin(axA));
-  ctx.strokeStyle = 'rgba(255,220,40,0.8)'; ctx.lineWidth = 2; ctx.stroke();
+  if (tabState?.showTabs) {
+    ctx.font = 'bold 12px system-ui';
+    ctx.fillStyle = 'rgba(230,240,255,0.85)';
+    const cLabel = tabState.activeMode || tabState.centerLabel || 'A';
+    ctx.fillText(cLabel === 'UNION' ? '∪' : cLabel === 'COMP' ? '↔' : cLabel === 'GRID4' ? '4' : cLabel, cx, cy - 16);
+  }
 
-  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2);
-  ctx.fillStyle = 'cyan'; ctx.fill();
-
-  // Clear sky % inside the plot
-  const clear = parseFloat(skyview.pct);
-  const clearColor = clear >= 85 ? '#4c4' : clear >= 78 ? '#fc4' : '#f66';
-  ctx.font = 'bold 24px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillText(`${skyview.pct}%`, cx + 1, cy + 1); // shadow
-  ctx.fillStyle = clearColor;
-  ctx.fillText(`${skyview.pct}%`, cx, cy);
+  const modePos = { A:{x:cx,y:cy-r}, B:{x:cx+r,y:cy}, UNION:{x:cx,y:cy+r}, COMP:{x:cx-r,y:cy}, GRID4:{x:cx+r*0.7,y:cy-r*0.7} };
+  if (tabState?.showTabs && modePos[tabState.activeMode]) {
+    const p = modePos[tabState.activeMode];
+    const nx = p.x - cx, ny = p.y - cy, len = Math.hypot(nx, ny) || 1;
+    const tx = -ny/len, ty = nx/len;
+    ctx.beginPath(); ctx.moveTo(p.x - tx*2, p.y - ty*2); ctx.lineTo(p.x + tx*2, p.y + ty*2);
+    ctx.strokeStyle = 'rgba(170,220,255,0.95)'; ctx.lineWidth = 2; ctx.stroke();
+  }
 }
 
 // ============================================================
@@ -536,9 +717,102 @@ async function main() {
   viewer.scene.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
 
   // State
-  let ctCartesian = null, ctCartographic = null;
-  let azimuthDeg = 0, skyview = null, heightAGL = 0;
+  const observers = {
+    A: { id: 'A', lat: null, lon: null, dH: 0, yaw: 0, pitch: DEFAULT_PITCH_DEG, cart: null, carto: null },
+    B: null,
+  };
+  let selectedObserverId = 'A';
+  let overlayMode = 'A'; // A | B | UNION | COMP | GRID4
+  let activeMask = null;
+  let lastRaisedCart = null;
   let lastEnuTx = null;
+  let derived = null;
+  let modeMasks = { A:null, B:null, UNION:null, COMP:null };
+  const polarTabState = { showTabs: false, activeMode: 'A', regions: [], revealUntil: 0, centerLabel: 'A', statLine: '' };
+
+  function getSelectedObserver() { return observers[selectedObserverId] || observers.A; }
+  function hasA() { return !!observers.A.cart; }
+  function hasB() { return !!observers.B; }
+
+  function updateObserverUI() {
+    const o = getSelectedObserver();
+    numH.value = o.dH;
+  }
+
+  function updatePolarLabel() {
+    const o = getSelectedObserver();
+    if (!o?.carto) { polarLabel.textContent = ''; return; }
+    const lat = Cesium.Math.toDegrees(o.carto.latitude);
+    const lon = Cesium.Math.toDegrees(o.carto.longitude);
+    polarLabel.textContent = `${selectedObserverId}: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  }
+
+  function setObserverCartesian(id, cart) {
+    if (!observers[id]) return;
+    observers[id].cart = cart;
+    observers[id].carto = Cesium.Cartographic.fromCartesian(cart);
+    observers[id].lat = Cesium.Math.toDegrees(observers[id].carto.latitude);
+    observers[id].lon = Cesium.Math.toDegrees(observers[id].carto.longitude);
+  }
+
+  function tuneCameraForPreset(lat, lon) {
+    // tuned neighborhood view with slight vertical target offset (~15% above center)
+    const offsetLat = 0.00018;
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(lon, lat - offsetLat, 430),
+      orientation: {
+        heading: Cesium.Math.toRadians(-25),
+        pitch: Cesium.Math.toRadians(-47),
+        roll: 0,
+      },
+      duration: 1.1,
+    });
+  }
+
+  function applyPreset(name) {
+    if (name === 'single') {
+      observers.A = { id:'A', lat:PRESET_ANCHOR.lat, lon:PRESET_ANCHOR.lon, dH:0, yaw:0, pitch:DEFAULT_PITCH_DEG,
+        cart: Cesium.Cartesian3.fromDegrees(PRESET_ANCHOR.lon, PRESET_ANCHOR.lat, 0),
+        carto: Cesium.Cartographic.fromDegrees(PRESET_ANCHOR.lon, PRESET_ANCHOR.lat, 0)};
+      observers.B = null; selectedObserverId = 'A'; overlayMode = 'A';
+      tuneCameraForPreset(PRESET_ANCHOR.lat, PRESET_ANCHOR.lon);
+    }
+    if (name === 'dual') {
+      observers.A = { id:'A', lat:47.6695, lon:-122.1055399, dH:-6, yaw:0, pitch:DEFAULT_PITCH_DEG,
+        cart: Cesium.Cartesian3.fromDegrees(-122.1055399, 47.6695, 0), carto: Cesium.Cartographic.fromDegrees(-122.1055399, 47.6695, 0)};
+      observers.B = { id:'B', lat:47.6695, lon:-122.1054601, dH:-6, yaw:180, pitch:DEFAULT_PITCH_DEG,
+        cart: Cesium.Cartesian3.fromDegrees(-122.1054601, 47.6695, 0), carto: Cesium.Cartographic.fromDegrees(-122.1054601, 47.6695, 0)};
+      selectedObserverId = 'A'; overlayMode = 'UNION';
+      tuneCameraForPreset(PRESET_ANCHOR.lat, PRESET_ANCHOR.lon);
+    }
+    if (name === 'randomSingle') {
+      observers.A = { id:'A', lat:RANDOM_SINGLE.lat, lon:RANDOM_SINGLE.lon, dH:RANDOM_SINGLE.dH, yaw:RANDOM_SINGLE.yaw, pitch:RANDOM_SINGLE.pitch,
+        cart: Cesium.Cartesian3.fromDegrees(RANDOM_SINGLE.lon, RANDOM_SINGLE.lat, 0),
+        carto: Cesium.Cartographic.fromDegrees(RANDOM_SINGLE.lon, RANDOM_SINGLE.lat, 0)};
+      observers.B = null; selectedObserverId = 'A'; overlayMode = 'A';
+      tuneCameraForPreset(RANDOM_SINGLE.lat, RANDOM_SINGLE.lon);
+    }
+    if (name === 'randomDual') {
+      observers.A = { id:'A', lat:RANDOM_DUAL.lat, lon:RANDOM_DUAL.lon - RANDOM_DUAL.offsetLon, dH:RANDOM_DUAL.dH, yaw:RANDOM_DUAL.yawA, pitch:RANDOM_DUAL.pitch,
+        cart: Cesium.Cartesian3.fromDegrees(RANDOM_DUAL.lon - RANDOM_DUAL.offsetLon, RANDOM_DUAL.lat, 0),
+        carto: Cesium.Cartographic.fromDegrees(RANDOM_DUAL.lon - RANDOM_DUAL.offsetLon, RANDOM_DUAL.lat, 0)};
+      observers.B = { id:'B', lat:RANDOM_DUAL.lat, lon:RANDOM_DUAL.lon + RANDOM_DUAL.offsetLon, dH:RANDOM_DUAL.dH, yaw:(RANDOM_DUAL.yawA+180)%360, pitch:RANDOM_DUAL.pitch,
+        cart: Cesium.Cartesian3.fromDegrees(RANDOM_DUAL.lon + RANDOM_DUAL.offsetLon, RANDOM_DUAL.lat, 0),
+        carto: Cesium.Cartographic.fromDegrees(RANDOM_DUAL.lon + RANDOM_DUAL.offsetLon, RANDOM_DUAL.lat, 0)};
+      selectedObserverId = 'A'; overlayMode = 'UNION';
+      tuneCameraForPreset(RANDOM_DUAL.lat, RANDOM_DUAL.lon);
+    }
+    if (name === 'clearB') {
+      observers.B = null;
+      if (selectedObserverId === 'B') selectedObserverId = 'A';
+      if (overlayMode !== 'A') overlayMode = 'A';
+    }
+    placementHint.style.display = 'none';
+    showPolar();
+    updateObserverUI();
+    updatePolarLabel();
+    runRaytrace();
+  }
 
   function showSpinner() {
     document.getElementById('pinBtn').classList.add('processing');
@@ -546,37 +820,76 @@ async function main() {
   }
   function hideSpinner() {
     document.getElementById('pinBtn').classList.remove('processing');
-    if (skyview?.pct) setStatus(`Clear sky ${skyview.pct}%`, 'success');
+    if (!activeMask) return;
+    if (overlayMode === 'UNION') setStatus('Coop', 'success');
+    else if (overlayMode === 'COMP') setStatus('Comp', 'success');
+    else setStatus(`Clear sky ${activeMask.pct}%`, 'success');
   }
 
   let raytraceId = 0; // increments on each request, stale ones abort
 
   function runRaytrace() {
-    if (!ctCartesian) return;
-    const thisId = ++raytraceId;
+    if (!hasA()) return;
+    // Debounce — always schedule the latest, cancel previous
+    if (raytraceTimer) clearTimeout(raytraceTimer);
     showSpinner();
+    raytraceTimer = requestAnimationFrame(() => { raytraceTimer = setTimeout(() => {
+      try {
+        const maskById = {};
+        for (const id of ['A','B']) {
+          const o = observers[id];
+          if (!o || !o.cart) continue;
+          const gc = Cesium.Cartographic.fromCartesian(o.cart);
+          const raised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + o.dH);
+          const enuTx = Cesium.Transforms.eastNorthUpToFixedFrame(raised);
+          maskById[id] = computeSkyMask(viewer, raised, enuTx, o.pitch, o.yaw);
+          maskById[id]._azDeg = o.yaw;
+          maskById[id]._raised = raised;
+          maskById[id]._enuTx = enuTx;
+        }
+        derived = null;
+        if (maskById.A && maskById.B) derived = computeDerivedMasks(maskById.A, maskById.B);
 
-    const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
-    const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + heightAGL);
-    const enuTx = Cesium.Transforms.eastNorthUpToFixedFrame(ctRaised);
-    lastEnuTx = enuTx;
+        modeMasks = {
+          A: maskById.A || null,
+          B: maskById.B || null,
+          UNION: derived ? derived.unionMask : null,
+          COMP: derived ? derived.compMask : null,
+        };
 
-    computeSkyviewAsync(viewer, ctRaised, enuTx, PITCH_DEG, azimuthDeg).then(result => {
-      if (thisId !== raytraceId) return; // stale, a newer raytrace superseded this one
-      skyview = result;
-      skyview._azDeg = azimuthDeg;
-      drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, ctRaised, enuTx, skyview);
-      drawPolarPlot(document.getElementById('polarCanvas'), skyview, azimuthDeg);
-      updatePolarLabel();
+        if (overlayMode === 'GRID4') activeMask = maskById.A;
+        else if (overlayMode === 'B' && maskById.B) activeMask = maskById.B;
+        else if (overlayMode === 'UNION' && derived) activeMask = derived.unionMask;
+        else if (overlayMode === 'COMP' && derived) activeMask = derived.compMask;
+        else activeMask = maskById.A;
+
+        const activeObserver = (overlayMode === 'B' && observers.B) ? observers.B : observers.A;
+        const raised = (overlayMode === 'B' && maskById.B) ? maskById.B._raised : maskById.A._raised;
+        const enuTx = (overlayMode === 'B' && maskById.B) ? maskById.B._enuTx : maskById.A._enuTx;
+        lastRaisedCart = raised;
+        lastEnuTx = enuTx;
+        drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, raised, enuTx, activeMask, overlayMode, activeObserver.yaw);
+        polarTabState.showTabs = hasB();
+        polarTabState.activeMode = overlayMode;
+        polarTabState.centerLabel = selectedObserverId;
+        polarTabState.quadMasks = modeMasks;
+        polarTabState.quadYaw = {
+          A: observers.A?.yaw || 0,
+          B: observers.B?.yaw || 0,
+          UNION: observers.A?.yaw || 0,
+          COMP: observers.A?.yaw || 0,
+        };
+        polarTabState.statLine = (overlayMode === 'UNION' && derived)
+          ? `+${derived.improvementPct.toFixed(1)}% · ${derived.overlapPct.toFixed(1)}%`
+          : '';
+        drawPolarPlot(document.getElementById('polarCanvas'), activeMask, activeObserver.yaw, polarTabState);
+        updatePolarLabel();
+      } catch(e) {
+        console.warn('Raytrace error:', e);
+        setStatus('Raytrace failed. Try again.', 'error');
+      }
       hideSpinner();
     }).catch(e => { console.warn('Raytrace error:', e); setStatus('Raytrace failed. Try again.', 'error'); hideSpinner(); });
-  }
-
-  function updatePolarLabel() {
-    if (!ctCartographic) return;
-    const lat = Cesium.Math.toDegrees(ctCartographic.latitude);
-    const lon = Cesium.Math.toDegrees(ctCartographic.longitude);
-    polarLabel.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
   }
 
   // Camera-idle overlay
@@ -585,9 +898,10 @@ async function main() {
   const IDLE_DELAY = IS_MOBILE ? 200 : 100;
 
   function drawPointMarker() {
-    if (!ctCartesian) return;
-    const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
-    const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + heightAGL);
+    const o = getSelectedObserver();
+    if (!o?.cart) return;
+    const gc = Cesium.Cartographic.fromCartesian(o.cart);
+    const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + o.dH);
     const sp = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, ctRaised);
     ovCtx.clearRect(0, 0, ovCanvas.width, ovCanvas.height);
     if (!sp) return;
@@ -598,15 +912,13 @@ async function main() {
   }
 
   function redrawOverlayNow() {
-    if (!skyview || !ctCartesian || !lastEnuTx) return;
-    const gc = Cesium.Cartographic.fromCartesian(ctCartesian);
-    const ctRaised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + heightAGL);
+    if (!activeMask || !lastRaisedCart || !lastEnuTx) return;
     ovCanvas.style.opacity = '1';
-    drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, ctRaised, lastEnuTx, skyview);
+    drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, lastRaisedCart, lastEnuTx, activeMask, overlayMode, getSelectedObserver().yaw);
   }
 
   viewer.scene.postRender.addEventListener(() => {
-    if (!skyview || !ctCartesian) return;
+    if (!activeMask || !hasA()) return;
     const camPos = viewer.scene.camera.positionWC;
     const moved = !Cesium.Cartesian3.equalsEpsilon(camPos, lastCameraPos, 0, 1e-6);
     Cesium.Cartesian3.clone(camPos, lastCameraPos);
@@ -624,7 +936,10 @@ async function main() {
   // INPUT
   // ============================================================
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-  function placePoint(pos) {
+  let placementMode = false;
+  let placementSlot = 'A';
+
+  function placePoint(pos, slot='A') {
     const cart = viewer.scene.pickPosition(pos);
     if (!cart) {
       // Tiles not loaded yet — flash pin button red briefly
@@ -633,41 +948,45 @@ async function main() {
       setStatus('Tiles still loading; try placing again.', 'warn');
       return;
     }
-    ctCartesian = cart;
-    ctCartographic = Cesium.Cartographic.fromCartesian(cart);
+    setObserverCartesian(slot, cart);
 
     // Instant visual feedback
     drawPointMarker();
     updatePolarLabel();
 
-    if (!hasPoint) {
+    if (!hasPoint && hasA()) {
       hasPoint = true;
       showPolar();
       placementHint.style.display = 'none';
     }
+    if (slot === 'B' && observers.B) {
+      selectedObserverId = 'A';
+      overlayMode = 'UNION';
+    }
     setStatus('Point placed. Running analysis…', 'warn');
+    updateObserverUI();
     runRaytrace();
   }
   // Right-click places point on desktop (no placement mode needed)
-  handler.setInputAction(function(click) { placePoint(click.position); }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+  handler.setInputAction(function(click) { placePoint(click.position, 'A'); }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
   // Prevent browser context menu from stealing right-click
   viewer.scene.canvas.addEventListener('contextmenu', e => e.preventDefault());
 
   // Pin button — tap to enter placement mode, next click/tap places point
   const pinBtn = document.getElementById('pinBtn');
-  let placementMode = false;
 
   function enterPlacementMode() {
     placementMode = true;
+    placementSlot = 'A';
     pinBtn.classList.add('active');
     viewer.scene.canvas.style.cursor = 'crosshair';
-    setStatus('Placement mode on: tap map to place point.', 'warn');
+    setStatus('Placement mode A: tap map to place point.', 'warn');
   }
   function exitPlacementMode() {
     placementMode = false;
     pinBtn.classList.remove('active');
     viewer.scene.canvas.style.cursor = '';
-    if (!skyview?.pct) setStatus('Ready.', '');
+    if (!activeMask?.pct) setStatus('Ready.', '');
   }
 
   pinBtn.addEventListener('click', () => {
@@ -678,7 +997,7 @@ async function main() {
   // In placement mode, left-click / tap places point
   handler.setInputAction(function(click) {
     if (!placementMode) return;
-    placePoint(click.position);
+    placePoint(click.position, placementSlot);
     exitPlacementMode();
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -722,28 +1041,93 @@ async function main() {
   });
 
   // Toolbar — bottom bar controls
-  const numAz=document.getElementById('numAz');
-  function setAzimuth(v){azimuthDeg=((Math.round(v)%360)+360)%360;numAz.value=azimuthDeg;runRaytrace();}
-  numAz.addEventListener('change',()=>setAzimuth(+numAz.value));
-  document.getElementById('btnAzMinus').addEventListener('click',()=>setAzimuth(azimuthDeg-10));
-  document.getElementById('btnAzPlus').addEventListener('click',()=>setAzimuth(azimuthDeg+10));
+  function setYaw(v){
+    const o = getSelectedObserver();
+    o.yaw = ((Math.round(v)%360)+360)%360;
+    runRaytrace();
+  }
   const numH=document.getElementById('numHeight');
+  const dhSlider = document.getElementById('dhSlider');
+  const dhSliderValue = document.getElementById('dhSliderValue');
+  const dhModal = document.getElementById('dhModal');
+  const dhCompactBtn = document.getElementById('dhCompactBtn');
+  function syncHeightUi(v) {
+    numH.value = v;
+    dhSlider.value = v;
+    dhSliderValue.textContent = Number(v).toFixed(1);
+  }
   function setHeight(v){
-    if (v <= 0) { heightAGL = 0; }
-    else if (v >= 40) { heightAGL = 40; }
-    else { heightAGL = Math.round(v * 10) / 10; } // 0.1 precision
-    numH.value = heightAGL;
+    const o = getSelectedObserver();
+    if (v <= -40) { o.dH = -40; }
+    else if (v >= 40) { o.dH = 40; }
+    else { o.dH = Math.round(v * 10) / 10; }
+    syncHeightUi(o.dH);
     runRaytrace();
   }
   numH.addEventListener('change',()=>setHeight(+numH.value));
-  document.getElementById('btnHMinus').addEventListener('click',()=>setHeight(heightAGL-1));
-  document.getElementById('btnHPlus').addEventListener('click',()=>setHeight(heightAGL+1));
+  dhSlider.addEventListener('input',()=>setHeight(+dhSlider.value));
+  dhCompactBtn.addEventListener('click', ()=> { syncHeightUi(getSelectedObserver().dH); dhModal.classList.remove('hide'); });
+  document.getElementById('dhClose').addEventListener('click', ()=>dhModal.classList.add('hide'));
+  dhModal.addEventListener('click', (e)=>{ if (e.target === dhModal) dhModal.classList.add('hide'); });
+  document.getElementById('btnHMinus').addEventListener('click',()=>setHeight(getSelectedObserver().dH-1));
+  document.getElementById('btnHPlus').addEventListener('click',()=>setHeight(getSelectedObserver().dH+1));
+
+  // Multi-observer controls
+  function armPlaceB() {
+    if (hasB()) return;
+    observers.B = { id:'B', lat:null, lon:null, dH:getSelectedObserver().dH, yaw:(observers.A.yaw+180)%360, pitch:observers.A.pitch, cart:null, carto:null };
+    placementMode = true;
+    placementSlot = 'B';
+    pinBtn.classList.add('active');
+    setStatus('Placement mode B: tap map to place observer B.', 'warn');
+    updateObserverUI();
+  }
+  function swapObservers() {
+    if (!hasB() || !observers.B?.cart) return;
+    const tmp = observers.A;
+    observers.A = { ...observers.B, id:'A' };
+    observers.B = { ...tmp, id:'B' };
+    selectedObserverId = selectedObserverId === 'A' ? 'B' : 'A';
+    updateObserverUI();
+    runRaytrace();
+  }
+  const presetSheet = document.getElementById('presetSheet');
+  function closePresetSheet(){ presetSheet.classList.add('hide'); }
+  function openPresetSheet(){ presetSheet.classList.remove('hide'); }
+  function togglePresetSheet() {
+    if (presetSheet.classList.contains('hide')) openPresetSheet();
+    else closePresetSheet();
+  }
+  const presetBtn = document.getElementById('presetBtn');
+  if (presetBtn) presetBtn.addEventListener('click', togglePresetSheet);
+  document.getElementById('moreBtn').addEventListener('click', togglePresetSheet);
+  document.getElementById('psPlaceA').addEventListener('click', ()=>{ enterPlacementMode(); closePresetSheet(); });
+  document.getElementById('psSingle').addEventListener('click', ()=>{ applyPreset('single'); closePresetSheet(); });
+  document.getElementById('psDual').addEventListener('click', ()=>{ applyPreset('dual'); closePresetSheet(); });
+  document.getElementById('psRndSingle').addEventListener('click', ()=>{ applyPreset('randomSingle'); closePresetSheet(); });
+  document.getElementById('psRndDual').addEventListener('click', ()=>{ applyPreset('randomDual'); closePresetSheet(); });
+  document.getElementById('psClearB').addEventListener('click', ()=>{ applyPreset('clearB'); closePresetSheet(); });
+  document.getElementById('psPlaceB').addEventListener('click', ()=>{ armPlaceB(); closePresetSheet(); });
+  document.getElementById('psSwap').addEventListener('click', ()=>{ swapObservers(); closePresetSheet(); });
+  document.getElementById('psClose').addEventListener('click', closePresetSheet);
 
   // ============================================================
   // POLAR PLOT DRAG — swipe/drag to aim azimuth
   // ============================================================
   const polarCanvas = document.getElementById('polarCanvas');
   let polarDragging = false;
+
+  function redrawPolarUiOnly() {
+    if (!activeMask) return;
+    const activeObserver = (overlayMode === 'B' && observers.B) ? observers.B : observers.A;
+    polarTabState.showTabs = hasB();
+    polarTabState.activeMode = overlayMode;
+    polarTabState.centerLabel = selectedObserverId;
+    polarTabState.statLine = (overlayMode === 'UNION' && derived)
+      ? `+${derived.improvementPct.toFixed(1)}% · ${derived.overlapPct.toFixed(1)}%`
+      : '';
+    drawPolarPlot(document.getElementById('polarCanvas'), activeMask, activeObserver.yaw, polarTabState);
+  }
 
   function polarAzFromEvent(e) {
     const rect = polarCanvas.getBoundingClientRect();
@@ -758,17 +1142,107 @@ async function main() {
     return Math.round(deg / 5) * 5; // snap to 5° increments
   }
 
+  function polarCanvasPoint(e) {
+    const rect = polarCanvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const sx = polarCanvas.width / rect.width;
+    const sy = polarCanvas.height / rect.height;
+    return { x: (clientX - rect.left) * sx, y: (clientY - rect.top) * sy };
+  }
+
+  function cycleMode() {
+    if (!hasB()) { overlayMode = 'A'; selectedObserverId='A'; return; }
+    const order = ['A', 'B', 'UNION', 'COMP', 'GRID4'];
+    const idx = order.indexOf(overlayMode);
+    overlayMode = order[(idx + 1) % order.length];
+    if (overlayMode === 'A' || overlayMode === 'B') selectedObserverId = overlayMode;
+  }
+
+  function openModeList() {
+    if (!hasB()) return;
+    const c = prompt('Mode: 1=A, 2=B, 3=∪, 4=↔, 5=4-grid', '1');
+    if (c==='1') { overlayMode='A'; selectedObserverId='A'; }
+    if (c==='2') { overlayMode='B'; selectedObserverId='B'; }
+    if (c==='3') overlayMode='UNION';
+    if (c==='4') overlayMode='COMP';
+    if (c==='5') overlayMode='GRID4';
+    updateObserverUI();
+    updatePolarLabel();
+    runRaytrace();
+  }
+
+  function isCenterToggleHit(e) {
+    if (!hasB()) return false;
+    const p = polarCanvasPoint(e);
+    const cx = polarCanvas.width/2, cy = polarCanvas.height/2 - 16;
+    const dx = p.x - cx, dy = p.y - cy;
+    const hitR = IS_MOBILE ? 28 : 22;
+    return dx*dx + dy*dy <= hitR*hitR;
+  }
+
+  function revealPlotUi(ms = (IS_MOBILE ? 2800 : 2000)) {
+    polarTabState.revealUntil = Date.now() + ms;
+    redrawPolarUiOnly();
+    setTimeout(redrawPolarUiOnly, ms + 20);
+  }
+
+  function handleQuadTap(e) {
+    if (overlayMode !== 'GRID4' || !polarTabState.quadRegions?.length) return false;
+    const p = polarCanvasPoint(e);
+    for (const q of polarTabState.quadRegions) {
+      const dx = p.x - q.x, dy = p.y - q.y;
+      if (dx*dx + dy*dy <= q.r*q.r) {
+        overlayMode = q.mode;
+        if (q.mode === 'A' || q.mode === 'B') selectedObserverId = q.mode;
+        updateObserverUI(); updatePolarLabel(); runRaytrace();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  let centerPressTimer = null;
+  let centerLongPressed = false;
+  let centerTapPending = false;
   function onPolarStart(e) {
-    if (!hasPoint) return;
+    if (!hasA()) return;
+    revealPlotUi();
+    centerLongPressed = false;
+    centerTapPending = false;
+    const centerHit = isCenterToggleHit(e);
+    if (centerHit) {
+      centerTapPending = true;
+      centerPressTimer = setTimeout(() => {
+        centerLongPressed = true;
+        openModeList();
+      }, 500);
+      return;
+    }
+    if (handleQuadTap(e)) return;
     polarDragging = true;
-    setAzimuth(polarAzFromEvent(e));
+    setYaw(polarAzFromEvent(e));
   }
   function onPolarMove(e) {
     if (!polarDragging) return;
     e.preventDefault();
-    setAzimuth(polarAzFromEvent(e));
+    revealPlotUi();
+    setYaw(polarAzFromEvent(e));
   }
-  function onPolarEnd() { polarDragging = false; }
+  function onPolarEnd() {
+    if (centerPressTimer) clearTimeout(centerPressTimer);
+    if (centerLongPressed) { centerLongPressed = false; centerTapPending = false; polarDragging = false; return; }
+    if (centerTapPending) {
+      cycleMode();
+      updateObserverUI();
+      updatePolarLabel();
+      runRaytrace();
+      centerTapPending = false;
+      polarDragging = false;
+      return;
+    }
+    polarDragging = false;
+  }
 
   // Touch events
   polarCanvas.addEventListener('touchstart', onPolarStart, { passive: true });
@@ -777,6 +1251,7 @@ async function main() {
   polarCanvas.addEventListener('touchcancel', onPolarEnd);
   // Mouse events (desktop)
   polarCanvas.addEventListener('mousedown', onPolarStart);
+  polarCanvas.addEventListener('mousemove', () => { if (hasB()) revealPlotUi(); });
   window.addEventListener('mousemove', onPolarMove);
   window.addEventListener('mouseup', onPolarEnd);
 
@@ -785,6 +1260,11 @@ async function main() {
   bar.addEventListener('wheel', e => e.stopPropagation(), { passive: false });
   bar.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
   bar.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+
+  updateObserverUI();
+
+  // First-load default preset and tuned camera framing
+  applyPreset('single');
 
   console.log('Skyview raytrace viewer ready');
 }

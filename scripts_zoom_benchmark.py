@@ -11,14 +11,55 @@ Usage:
 import argparse
 import asyncio
 import json
+import re
 import statistics
 import sys
+from pathlib import Path
 from typing import Dict, List
 
 try:
     from playwright.async_api import async_playwright
 except ModuleNotFoundError:  # pragma: no cover - environment-dependent import path
     async_playwright = None
+
+
+def run_static_ux_checks(html_path: Path):
+    html = html_path.read_text(encoding="utf-8")
+
+    checks = {
+        "has_bottom_bar": bool(re.search(r"id=['\"]bottomBar['\"]", html)),
+        "safe_area_anchor": all(t in html for t in [
+            "inset-inline-start: max(12px, env(safe-area-inset-left));",
+            "inset-inline-end: max(12px, env(safe-area-inset-right));",
+            "bottom: calc(12px + env(safe-area-inset-bottom));",
+        ]),
+        "single_row_nowrap": "flex-wrap: nowrap;" in html,
+        "overflow_guard": "overflow: hidden;" in html and "box-sizing: border-box;" in html,
+        "search_flex_constraints": all(t in html for t in [
+            "#bottomBar #searchInput",
+            "flex: 1 1 auto;",
+            "min-width: 96px;",
+            "text-overflow: ellipsis;",
+        ]),
+        "stepper_clamp": "width: clamp(96px, 26vw, 128px);" in html,
+        "icon_clamp": "width: clamp(32px, 9vw, 40px);" in html and "aspect-ratio: 1;" in html,
+        "tokenized_heights": all(t in html for t in [
+            "--control-h: clamp(34px, 9.5vw, 40px);",
+            "--control-r: calc(var(--control-h) / 4);",
+            "--bar-font: clamp(12px, 3.2vw, 14px);",
+            "--bar-font-strong: clamp(13px, 3.6vw, 16px);",
+        ]),
+        "breakpoint_360_pin_hide": "@media (max-width: 359px)" in html and "#bottomBar #pinBtn { display: none; }" in html,
+        "breakpoint_320_stepper_collapse": "@media (max-width: 320px)" in html and "#dhGroup { display: none; }" in html and "#dhCompactBtn" in html,
+    }
+    failed = [name for name, ok in checks.items() if not ok]
+    return {
+        "status": "PASS" if not failed else "FAIL",
+        "checked_file": str(html_path),
+        "checks": checks,
+        "failed": failed,
+    }
+
 
 
 async def run_trial(browser, url: str, mobile: bool, start_height: int, target_height: int, max_steps: int, settle_ms: int):
@@ -86,30 +127,27 @@ async def main():
     args = parser.parse_args()
 
     if async_playwright is None:
-        print(
-            json.dumps(
-                {
-                    "status": "skipped",
-                    "reason": "python_playwright_missing",
-                    "message": (
-                        "Python package 'playwright' is not installed in this environment. "
-                        "Install it and run again, or run manual benchmark commands in browser console."
-                    ),
-                    "manual_console_commands": {
-                        "desktop": (
-                            "await window.__skyviewDebug.runSyntheticZoomBenchmark({"
-                            "startHeight:2000,targetHeight:200,maxSteps:120,settleMs:8})"
-                        ),
-                        "mobile": (
-                            "Open DevTools device emulation first, then run: "
-                            "await window.__skyviewDebug.runSyntheticZoomBenchmark({"
-                            "startHeight:2000,targetHeight:200,maxSteps:120,settleMs:8})"
-                        ),
-                    },
-                },
-                indent=2,
-            )
-        )
+        print("Playwright Python package is not installed. Running static UX checks.", file=sys.stderr)
+        static = run_static_ux_checks(Path("skyview-standalone.html"))
+        for name, ok in static["checks"].items():
+            print(f"[{'PASS' if ok else 'FAIL'}] {name}")
+        print(json.dumps({
+            "message": "Install playwright to run browser benchmark trials.",
+            "manual_console_commands": {
+                "desktop": (
+                    "await window.__skyviewDebug.runSyntheticZoomBenchmark({"
+                    "startHeight:2000,targetHeight:200,maxSteps:120,settleMs:8})"
+                ),
+                "mobile": (
+                    "Open DevTools device emulation first, then run: "
+                    "await window.__skyviewDebug.runSyntheticZoomBenchmark({"
+                    "startHeight:2000,targetHeight:200,maxSteps:120,settleMs:8})"
+                ),
+            },
+            "static_ux_checks": static,
+        }, indent=2))
+        if static["status"] != "PASS":
+            raise SystemExit(1)
         return
 
     async with async_playwright() as p:

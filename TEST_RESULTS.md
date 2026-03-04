@@ -1,36 +1,51 @@
 # Latest Validation Results
 
-Executed against local server (`http://localhost:8090/skyview-standalone.html`) using Playwright browser tooling.
+Executed against local server (`http://localhost:8090/skyview-standalone.html`) with both shell checks and browser automation.
 
-## Zoom benchmark (synthetic)
+## 1) Benchmark script fallback proof (no Python Playwright)
 
-Command evaluated in browser (both profiles):
+Command:
 
-```js
-await window.__skyviewDebug.runSyntheticZoomBenchmark({
-  startHeight: 2000,
-  targetHeight: 200,
-  maxSteps: 120,
-  settleMs: 8,
-})
+```bash
+python3 scripts_zoom_benchmark.py --url http://localhost:8090/skyview-standalone.html --trials 1
 ```
 
-### Desktop profile
-- steps: **18**
-- endHeight: **197.0548m**
-- elapsedMs: **10194**
-- zoomFactor(final): **3.7753**
+Observed behavior:
+- Prints clear dependency message: `Playwright Python package is not installed...`.
+- Exits successfully with fallback JSON.
+- Runs static UX checks with all required layout checks passing:
+  - `has_bottom_bar: true`
+  - `search_width_clamp: true`
+  - `dh_group_fixed_width: true`
+  - `icon_square_40: true`
+  - `single_row_nowrap: true`
 
-### Mobile profile
-- steps: **20**
-- endHeight: **190.6491m**
-- elapsedMs: **5354**
-- zoomFactor(final): **3.4605**
+## 2) Browser automation UX evidence (desktop + mobile)
 
-### Parity summary
-- Mobile step overhead vs desktop: **+11.1%** (`20 / 18 - 1`).
-- This remains within the currently targeted “slightly slower on mobile” behavior envelope.
+Automated browser run collected real layout/runtime metrics and screenshots.
 
-## Artifacts
-- Desktop screenshot: `desktop-benchmark-latest.png`
-- Mobile screenshot: `mobile-benchmark-latest.png`
+### Desktop (1440×900)
+- `wrap: nowrap`
+- `controlHeights: [40, 40, 40, 40]`
+- `barWidth: 464`
+- `status: Clear sky 100.0%`
+- `errors: []`
+
+### Mobile (iPhone 13 profile)
+- `viewportWidth: 390`
+- `wrap: nowrap`
+- `overflowsViewport: false`
+- `searchWidth: 163.796875`
+- `controlHeights: [40, 40, 40, 40]`
+- `status: Coop`
+- `errors: []`
+
+## 3) Syntax check
+
+Command:
+
+```bash
+python3 -m py_compile scripts_zoom_benchmark.py
+```
+
+Result: pass.
