@@ -95,8 +95,7 @@ Same layout on mobile and desktop:
   - Yellow: >= 15% and < 22%
   - Red: >= 22%
 - **Lat/lon**: shown below the polar plot
-- **Bottom bar** (row 1): search input + pin placement button
-- **Bottom bar** (row 2): azimuth +/- (10° steps) + height +/- (1m steps)
+- **Bottom bar**: single-row controls (search + dH stepper + pin + menu)
 - **Pin button**: tap to enter placement mode, tap map to place point. Pulses orange during raytrace
 - **Dome overlay**: hides during camera movement (only cyan dot visible), reappears when idle
 
@@ -104,13 +103,44 @@ Same layout on mobile and desktop:
 
 **Hosted** — open [0v9n.github.io/skyview/skyview-standalone.html](https://0v9n.github.io/skyview/skyview-standalone.html)
 
-**Local** — the bundled API key is restricted to the hosted URL above. To run locally, get your own [Google Maps API key](https://developers.google.com/maps/documentation/tile/get-api-key) and replace it in the HTML:
+**Local** — a local-development API key is bundled for running this repo on localhost. If needed, you can still use your own [Google Maps API key](https://developers.google.com/maps/documentation/tile/get-api-key) by replacing it in the HTML:
 
 ```js
 const sceneConfig = { api_key: 'YOUR_API_KEY_HERE', ... };
 ```
 
 Then run `python3 serve.py` (opens browser automatically on `:8090`)
+
+### Desktop + mobile validation
+
+To verify zoom-flow parity in both profiles with the built-in benchmark hook:
+
+1. Start a local server:
+
+```bash
+python3 -m http.server 8090 --bind 0.0.0.0
+```
+
+2. Run the benchmark script (requires Python Playwright):
+
+```bash
+python3 scripts_zoom_benchmark.py --url http://localhost:8090/skyview-standalone.html --trials 5
+```
+
+This prints desktop/mobile medians and `%` step overhead for mobile vs desktop.
+
+### Implementation notes (UX presets)
+
+Built-in scene presets used for screenshots and quick reset:
+
+1. **Tower single** (anchor)
+2. **Tower dual** (side offsets)
+3. **Random single** (predefined lat/lon + dH/yaw)
+4. **Random dual** (predefined lat/lon + offsets + `yawB = yawA + 180`)
+
+On first load, preset **1 (Tower single)** is auto-applied and camera framing is tuned to a neighborhood-level view with a slight vertical offset so the tower remains clear above the bottom bar.
+
+If Python Playwright is unavailable, the script runs static UX checks and exits non-zero on failure, while still printing manual console commands for browser-side benchmarking.
 
 ### Controls
 
@@ -123,8 +153,8 @@ Then run `python3 serve.py` (opens browser automatically on `:8090`)
 | R (desktop) | Reset camera |
 | Search bar | Fly to location (name or `lat, lon`) |
 | Drag polar plot | Aim beam azimuth direction |
-| Az +/- | Rotate beam 10° increments |
-| ΔH +/- | Raise/lower point 1m increments |
+| dH - / + | Lower/raise selected observer height |
+| ⋯ menu | Presets and observer actions |
 
 ### Performance
 
@@ -140,5 +170,6 @@ Then run `python3 serve.py` (opens browser automatically on `:8090`)
 ```
 skyview/
 ├── skyview-standalone.html   Single-file app (HTML + CSS + JS)
+├── scripts_zoom_benchmark.py Desktop/mobile parity + static UX checks
 └── serve.py                  Local dev server (Python 3)
 ```
