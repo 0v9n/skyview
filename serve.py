@@ -25,12 +25,16 @@ def load_api_key() -> str:
 
 
 API_KEY = load_api_key()
+HTML_WITH_INJECTION = {"/skyview-standalone.html", "/skyview-standalone-2points.html"}
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
-        if self.path in ("/", "/skyview-standalone.html") and API_KEY:
-            with open("skyview-standalone.html", "rb") as html_file:
+        requested = self.path.split("?", 1)[0]
+        target = "/skyview-standalone.html" if requested == "/" else requested
+        if target in HTML_WITH_INJECTION and API_KEY:
+            filename = target.lstrip("/")
+            with open(filename, "rb") as html_file:
                 content = html_file.read().replace(b"GOOGLE_MAPS_API_KEY", API_KEY.encode())
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
