@@ -237,6 +237,7 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
     <div class="sheetRow"><span style="color:#c8d4e8; min-width:30px;">dH</span><input id="dhSlider" type="range" min="0" max="40" step="0.1" value="0"><span id="dhSliderValue" style="color:#e8e8e8; min-width:42px; text-align:right;">0.0</span></div>
     <button id="dhClose" aria-label="Close height slider">Done</button>
   </div>
+  <div id="statusLine" role="status" aria-live="polite">Ready.</div>
 </div>
 <script>
 // ============================================================
@@ -295,14 +296,16 @@ function computeSkyMask(viewer, ctCart, enuTx, pitchDeg, yawDeg) {
           const d = Cesium.Cartesian3.distance(ctCart, pick.position);
           if (d > 0.3 && d < RAY_RANGE) { hit=true; hitDist=d; }
         }
-        total++; if(!hit) clear++;
+        results.push(row);
       }
-      // Store a copy of enuDir for dome overlay (needed later)
-      row.push({inside, hit, hitDist, az, el, enuDir: Cesium.Cartesian3.clone(_rtEnu)});
+      if (ai < AZ_N) {
+        setTimeout(processChunk, 0); // yield to browser
+      } else {
+        resolve({results, clear, total, pct: total>0?(100*clear/total).toFixed(1):'N/A'});
+      }
     }
-    results.push(row);
-  }
-  return {results, clear, total, pct: total>0?(100*clear/total).toFixed(1):'N/A'};
+    processChunk();
+  });
 }
 
 function visibleCell(cell) { return cell.inside && !cell.hit; }
@@ -823,7 +826,7 @@ async function main() {
     else setStatus(`Clear sky ${activeMask.pct}%`, 'success');
   }
 
-  let raytraceTimer = null;
+  let raytraceId = 0; // increments on each request, stale ones abort
 
   function runRaytrace() {
     if (!hasA()) return;
@@ -886,8 +889,7 @@ async function main() {
         setStatus('Raytrace failed. Try again.', 'error');
       }
       hideSpinner();
-      raytraceTimer = null;
-    }, 0); });
+    }).catch(e => { console.warn('Raytrace error:', e); setStatus('Raytrace failed. Try again.', 'error'); hideSpinner(); });
   }
 
   // Camera-idle overlay
