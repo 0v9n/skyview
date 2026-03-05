@@ -12,24 +12,103 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 #cesiumContainer { width: 100vw; height: 100vh; }
 #overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1; }
 
-
-
-/* Floating polar plot — top-right quadrant, constrained to 2x2 grid */
-#polarFloat {
+/* ── Polar panel: large combo + small A/B below ── */
+#polarPanel {
   position: fixed; top: 10px; right: 10px; z-index: 9;
-  width: min(45vw, 45vh); height: min(45vw, 45vh);
-  max-width: 280px; max-height: 280px;
-  display: none; /* shown after first point */
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   transition: opacity 0.2s ease-out;
 }
-#polarFloat canvas { width: 100%; height: auto; aspect-ratio: 1; border-radius: 50%; display: block; cursor: crosshair; touch-action: none; }
-#polarLabel {
-  color: #d8d8d8; font-size: 12px; text-align: center; margin-top: 4px;
+/* Large main plot */
+#mainPlot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#mainPlot canvas {
+  width: min(45vw, 340px);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+#mainPlotLabel {
+  color: #d8d8d8;
+  font-size: 11px;
+  text-align: center;
+  margin-top: 2px;
   text-shadow: 0 1px 3px rgba(0,0,0,0.8);
   white-space: nowrap;
 }
+/* Small A/B row below */
+#smallRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.polarSlot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.polarSlot canvas {
+  width: min(18vw, 120px);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+.polarSlot .polarSlotLabel {
+  color: #d8d8d8;
+  font-size: 10px;
+  text-align: center;
+  margin-top: 2px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  white-space: nowrap;
+}
+#slotB { display: none; }
 
-/* Control strip: no backdrop panel, controls only */
+/* Az toolbar */
+#azToolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+#azToolbar button {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  border: 1px solid #3f4b61;
+  background: rgba(14,19,30,0.84);
+  color: #d5deee;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+#azToolbar button:hover { background: rgba(34,42,62,0.94); border-color: #6f84ad; }
+#azToolbar button.active { background: rgba(100,170,255,0.25); border-color: #6fa8e0; color: #fff; }
+#azToolbar .azLabel {
+  color: #a0b0cc;
+  font-size: 11px;
+}
+#comboStats {
+  color: #a9bbd9;
+  font-size: 11px;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  min-height: 14px;
+}
+
+/* ── Bottom bar ── */
 #bottomBar {
   position: fixed;
   left: 50%;
@@ -90,6 +169,11 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
   background: rgba(100, 170, 255, 0.18);
   color: #e8f2ff;
 }
+#pointTabs .ptBtn.disabled {
+  color: #4a5568;
+  cursor: default;
+  pointer-events: none;
+}
 #bottomBar #pinBtn {
   width: 36px; height: 36px; border-radius: 10px; border: 1px solid #3f4b61;
   background: rgba(14, 19, 30, 0.84); color: #d5deee; font-size: 18px;
@@ -98,6 +182,44 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 }
 #bottomBar #pinBtn:hover { background: rgba(34, 42, 62, 0.94); border-color: #6f84ad; }
 #bottomBar #pinBtn.active { background: rgba(40,180,80,0.85); border-color: #4c4; color: #fff; }
+
+/* Dual toggle slider */
+#dualToggle {
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid #3f4b61;
+  background: rgba(14, 19, 30, 0.84);
+  color: #8797b5;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  user-select: none;
+  transition: all 0.15s;
+}
+#dualToggle .toggleTrack {
+  width: 32px; height: 18px;
+  border-radius: 9px;
+  background: #3a4560;
+  position: relative;
+  transition: background 0.2s;
+}
+#dualToggle .toggleThumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #8797b5;
+  position: absolute;
+  top: 2px; left: 2px;
+  transition: all 0.2s;
+}
+#dualToggle.on { color: #e7edf8; border-color: #5a7aad; }
+#dualToggle.on .toggleTrack { background: rgba(80,160,255,0.5); }
+#dualToggle.on .toggleThumb { left: 16px; background: #7ec8ff; }
+
 #demoBtn {
   height: 36px;
   border-radius: 10px;
@@ -150,74 +272,6 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
   cursor: pointer;
 }
 
-#vennPanel {
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  z-index: 10;
-  display: none;
-  width: 220px;
-  padding: 10px;
-  border-radius: 12px;
-  border: 1px solid #3f4b61;
-  background: rgba(8, 12, 18, 0.84);
-  backdrop-filter: blur(4px);
-}
-#vennPanel .head {
-  color: #cfdaf0;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-#vennStage {
-  position: relative;
-  width: 100%;
-  height: 114px;
-  margin-top: 8px;
-}
-.vennNode {
-  position: absolute;
-  width: 92px;
-  height: 92px;
-  border-radius: 50%;
-  border: 2px solid;
-  background: rgba(255,255,255,0.06);
-  color: #e8f0ff;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-}
-#vennA { left: 10px; top: 10px; border-color: #5fd6ff; background: rgba(45, 186, 255, 0.2); }
-#vennB { left: 82px; top: 10px; border-color: #ffba6b; background: rgba(255, 167, 78, 0.2); }
-.vennNode .lbl { font-size: 12px; font-weight: 700; }
-.vennNode .pct { font-size: 14px; font-weight: 700; }
-#vennMix {
-  position: absolute;
-  left: 72px;
-  top: 40px;
-  width: 78px;
-  height: 38px;
-  border-radius: 20px;
-  border: 1px solid #7f90b4;
-  background: rgba(35, 48, 74, 0.92);
-  color: #eef3ff;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.vennActive {
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.35) inset, 0 0 0 2px rgba(110,175,255,0.45);
-}
-#vennMeta {
-  margin-top: 6px;
-  color: #a9bbd9;
-  font-size: 12px;
-  text-align: center;
-}
-
 /* Processing state — pin button pulses */
 #bottomBar #pinBtn.processing {
   background: rgba(255,180,40,0.85); border-color: #fc4; color: #fff;
@@ -247,17 +301,12 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 .cesium-viewer-fullscreenContainer { display: none !important; }
 
 @media (max-width: 600px) {
-  #polarFloat { top: 8px; right: 8px; }
+  #mainPlot canvas { width: min(55vw, 240px); }
+  .polarSlot canvas { width: min(28vw, 100px); }
   #bottomBar { gap: 5px; }
   #bottomBar #searchInput { width: min(45vw, 170px); }
   #bottomBar #pinBtn { width: 32px; height: 32px; font-size: 16px; }
   #demoBtn { height: 32px; padding: 0 10px; }
-  #vennPanel { width: 184px; padding: 8px; top: 8px; left: 8px; }
-  #vennStage { height: 98px; }
-  .vennNode { width: 78px; height: 78px; }
-  #vennA { left: 8px; top: 8px; }
-  #vennB { left: 67px; top: 8px; }
-  #vennMix { left: 57px; top: 34px; width: 66px; height: 32px; font-size: 11px; }
   #statusLine { font-size: 11px; max-width: 320px; }
   #placementHint { top: 8px; left: 8px; font-size: 11px; }
 }
@@ -267,43 +316,41 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
 <div id="cesiumContainer"></div>
 <canvas id="overlay"></canvas>
 <div id="placementHint" role="status">Select <b>A</b> or <b>B</b>, tap <b>◎ pin</b>, then tap map. Use <b>Demos</b> for quick scenes.</div>
-<!-- Polar plot — top-right after point placed -->
-<div id="polarFloat">
-  <canvas id="polarCanvas" width="480" height="480"></canvas>
-  <div id="polarLabel"></div>
-</div>
-<div id="vennPanel" aria-label="A B combination projection">
-  <div class="head">2-Point Projection</div>
-  <div id="vennStage">
-    <button id="vennA" class="vennNode" data-mode="A" aria-label="Show point A projection">
-      <span class="lbl">A</span>
-      <span id="vennAPct" class="pct">--</span>
-    </button>
-    <button id="vennB" class="vennNode" data-mode="B" aria-label="Show point B projection">
-      <span class="lbl">B</span>
-      <span id="vennBPct" class="pct">--</span>
-    </button>
-    <button id="vennMix" data-mode="UNION" aria-label="Show combined projection">A+B</button>
+
+<!-- Polar panel — large combo on top, small A/B below -->
+<div id="polarPanel">
+  <div id="mainPlot">
+    <canvas id="polarCanvasMain" width="480" height="480"></canvas>
+    <div id="mainPlotLabel">A</div>
   </div>
-  <div id="vennMeta">Place A and B to compare.</div>
+  <div id="azToolbar">
+    <span class="azLabel" id="azReadout">Az 0°</span>
+    <button id="btnAzOppose" title="Keep B opposite to A (A+180°)" aria-label="Toggle complementary azimuth">&lt;&gt;</button>
+  </div>
+  <div id="comboStats"></div>
+  <div id="smallRow">
+    <div id="slotA" class="polarSlot">
+      <canvas id="polarCanvasA" width="320" height="320"></canvas>
+      <div class="polarSlotLabel" id="labelA">A</div>
+    </div>
+    <div id="slotB" class="polarSlot">
+      <canvas id="polarCanvasB" width="320" height="320"></canvas>
+      <div class="polarSlotLabel" id="labelB">B</div>
+    </div>
+  </div>
 </div>
+
 <!-- Control strip -->
 <div id="bottomBar">
   <input type="text" id="searchInput" placeholder="Search / lat,lon" spellcheck="false" aria-label="Search location by name or lat lon">
   <div id="pointTabs" class="ctrl" aria-label="Select active point">
     <button id="selectA" class="ptBtn active" aria-label="Select point A">A</button>
-    <button id="selectB" class="ptBtn" aria-label="Select point B">B</button>
+    <button id="selectB" class="ptBtn disabled" aria-label="Select point B">B</button>
   </div>
   <button id="pinBtn" title="Place selected point" aria-label="Toggle placement mode">&#9906;</button>
-  <button id="demoBtn" title="Open demos" aria-label="Open demos and presets">Demos</button>
-  <div id="azGroup" class="ctrl" aria-label="Azimuth controls">
-    <span class="groupLabel">Az</span>
-    <div class="row">
-      <button id="btnAzMinus" aria-label="Decrease azimuth">&minus;</button>
-      <input type="number" id="numAz" value="0" min="0" max="355" step="10" aria-label="Azimuth in degrees">
-      <button id="btnAzPlus" aria-label="Increase azimuth">+</button>
-    </div>
-    <span style="color:#7d8aa7;font-size:11px;">&deg;</span>
+  <div id="dualToggle" title="Enable dual-point mode" aria-label="Toggle dual point mode">
+    <span>Dual</span>
+    <div class="toggleTrack"><div class="toggleThumb"></div></div>
   </div>
   <div id="hGroup" class="ctrl" aria-label="Height controls">
     <span class="groupLabel">&Delta;H</span>
@@ -314,16 +361,14 @@ body { background: #111; overflow: hidden; font-family: system-ui, sans-serif; }
     </div>
     <span style="color:#7d8aa7;font-size:11px;">m</span>
   </div>
+  <button id="demoBtn" title="Open demos" aria-label="Open demos and presets">Demos</button>
 </div>
 <div id="demosSheet" class="hide" aria-label="Demos">
   <button id="demoSingle">Demo: A Only</button>
   <button id="demoDual">Demo: A + B</button>
-  <button id="demoRandomDual">Demo: Random Dual</button>
-  <button id="demoPlaceB">Place B Now</button>
-  <button id="demoClearB">Clear B</button>
-  <button id="demoClose">Close</button>
 </div>
 <div id="statusLine" role="status" aria-live="polite">Ready.</div>
+
 <script>
 // ============================================================
 // PLATFORM DETECTION
@@ -335,10 +380,9 @@ const OV_DPR = IS_MOBILE ? 1 : devicePixelRatio;
 // SKYVIEW CONFIG
 // ============================================================
 const MIN_ELEV_DEG = 35, DOME_R = 5, RAY_RANGE = 100;
-const AZ_N = IS_MOBILE ? 24 : 48, EL_N = IS_MOBILE ? 8 : 12;
+const AZ_N = IS_MOBILE ? 36 : 72, EL_N = IS_MOBILE ? 12 : 18;
 const BEAM_HALF_ANGLE_DEG = 55, PITCH_DEG = 15;
 const PRESET_ANCHOR = { lat: 47.6695, lon: -122.1055 };
-const RANDOM_DUAL = { lat: 48.8584, lon: 2.2945, offsetLon: 0.00008, dH: 5, yawA: 20 };
 
 function beamAxis(pitchDeg, azDeg) {
   const p = pitchDeg * Math.PI / 180, a = azDeg * Math.PI / 180;
@@ -352,7 +396,6 @@ const CHUNK_SIZE = IS_MOBILE ? 4 : 8;
 
 function computeSkyviewAsync(viewer, ctCart, enuTx, pitchDeg, azDeg, shouldAbort = null) {
   return new Promise((resolve) => {
-    // Local scratch objects per job so A/B can run concurrently.
     const rtEnu = new Cesium.Cartesian3();
     const rtNorm = new Cesium.Cartesian3();
     const rtAxis = new Cesium.Cartesian3();
@@ -374,7 +417,6 @@ function computeSkyviewAsync(viewer, ctCart, enuTx, pitchDeg, azDeg, shouldAbort
           rtEnu.x = Math.sin(az)*Math.cos(el); rtEnu.y = Math.cos(az)*Math.cos(el); rtEnu.z = Math.sin(el);
           Cesium.Cartesian3.normalize(rtEnu, rtNorm);
           const inside = Cesium.Cartesian3.dot(rtNorm, rtAxis) >= beamCos;
-
           let hit=false, hitDist=RAY_RANGE;
           if (inside) {
             Cesium.Matrix4.multiplyByPointAsVector(enuTx, rtEnu, rtWDir);
@@ -390,11 +432,8 @@ function computeSkyviewAsync(viewer, ctCart, enuTx, pitchDeg, azDeg, shouldAbort
         }
         results.push(row);
       }
-      if (ai < AZ_N) {
-        setTimeout(processChunk, 0); // yield to browser
-      } else {
-        resolve({results, clear, total, pct: total>0?(100*clear/total).toFixed(1):'N/A'});
-      }
+      if (ai < AZ_N) setTimeout(processChunk, 0);
+      else resolve({results, clear, total, pct: total>0?(100*clear/total).toFixed(1):'N/A'});
     }
     processChunk();
   });
@@ -404,58 +443,32 @@ function visibleCell(cell) { return !!cell && cell.inside && !cell.hit; }
 
 function computeDerivedMasks(maskA, maskB) {
   const unionResults = [];
-  let unionVisible = 0;
-  let overlapVisible = 0;
-  let unionTotal = 0;
-  let aOnly = 0;
-  let bOnly = 0;
-
+  let unionVisible = 0, overlapVisible = 0, unionTotal = 0, aOnly = 0, bOnly = 0;
   for (let ai=0; ai<AZ_N; ai++) {
     const row = [];
     for (let ei=0; ei<EL_N; ei++) {
-      const ca = maskA.results[ai][ei];
-      const cb = maskB.results[ai][ei];
-      const va = visibleCell(ca);
-      const vb = visibleCell(cb);
-      const inU = ca.inside || cb.inside;
-      const vU = va || vb;
+      const ca = maskA.results[ai][ei], cb = maskB.results[ai][ei];
+      const va = visibleCell(ca), vb = visibleCell(cb);
+      const inU = ca.inside || cb.inside, vU = va || vb;
       if (inU) unionTotal++;
       if (vU) unionVisible++;
       if (va && vb) overlapVisible++;
       if (va && !vb) aOnly++;
       if (vb && !va) bOnly++;
-      row.push({
-        inside: inU,
-        hit: inU ? !vU : false,
-        hitDist: Math.min(ca.hitDist, cb.hitDist),
-        az: ca.az,
-        el: ca.el,
-        enuDir: ca.enuDir,
-      });
+      row.push({ inside: inU, hit: inU ? !vU : false, hitDist: Math.min(ca.hitDist, cb.hitDist), az: ca.az, el: ca.el, enuDir: ca.enuDir });
     }
     unionResults.push(row);
   }
-
   const overlapPct = unionVisible > 0 ? (100 * overlapVisible / unionVisible) : 0;
   const gainPct = maskA.clear > 0 ? (100 * (unionVisible - maskA.clear) / maskA.clear) : 0;
   return {
-    unionMask: {
-      results: unionResults,
-      clear: unionVisible,
-      total: unionTotal,
-      pct: unionTotal > 0 ? (100 * unionVisible / unionTotal).toFixed(1) : '0.0',
-    },
-    overlapPct,
-    gainPct,
-    aOnly,
-    bOnly,
-    unionVisible,
-    overlapVisible,
+    unionMask: { results: unionResults, clear: unionVisible, total: unionTotal, pct: unionTotal > 0 ? (100 * unionVisible / unionTotal).toFixed(1) : '0.0' },
+    overlapPct, gainPct, aOnly, bOnly, unionVisible, overlapVisible,
   };
 }
 
 // ============================================================
-// DOME OVERLAY — pre-allocated scratch objects
+// DOME OVERLAY
 // ============================================================
 const _scratchC3 = new Cesium.Cartesian3();
 const _scratchP  = new Cesium.Cartesian3();
@@ -466,30 +479,23 @@ const _scratchCorners = [new Cesium.Cartesian3(), new Cesium.Cartesian3(), new C
 function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview, palette='A', clear=true) {
   if (clear) ctx.clearRect(0, 0, w, h);
   if (!skyview || !ctCart) return;
-
   const minEl = MIN_ELEV_DEG*Math.PI/180, maxEl = Math.PI/2;
   const scene = viewer.scene;
-
   function toScreen(worldPos) {
     const sp = Cesium.SceneTransforms.wgs84ToWindowCoordinates(scene, worldPos);
     return sp ? [sp.x * OV_DPR, sp.y * OV_DPR] : null;
   }
-
   const redCells = [], greenCells = [];
   for (let ai=0; ai<AZ_N; ai++) {
     for (let ei=0; ei<EL_N-1; ei++) {
       const cell = skyview.results[ai][ei];
       if (!cell.inside) continue;
-
       const az0=(ai/AZ_N)*2*Math.PI, az1=((ai+1)/AZ_N)*2*Math.PI;
-      const el0=minEl+(ei/(EL_N-1))*(maxEl-minEl);
-      const el1=minEl+((ei+1)/(EL_N-1))*(maxEl-minEl);
-
+      const el0=minEl+(ei/(EL_N-1))*(maxEl-minEl), el1=minEl+((ei+1)/(EL_N-1))*(maxEl-minEl);
       _scratchCorners[0].x=DOME_R*Math.sin(az0)*Math.cos(el0); _scratchCorners[0].y=DOME_R*Math.cos(az0)*Math.cos(el0); _scratchCorners[0].z=DOME_R*Math.sin(el0);
       _scratchCorners[1].x=DOME_R*Math.sin(az0)*Math.cos(el1); _scratchCorners[1].y=DOME_R*Math.cos(az0)*Math.cos(el1); _scratchCorners[1].z=DOME_R*Math.sin(el1);
       _scratchCorners[2].x=DOME_R*Math.sin(az1)*Math.cos(el1); _scratchCorners[2].y=DOME_R*Math.cos(az1)*Math.cos(el1); _scratchCorners[2].z=DOME_R*Math.sin(el1);
       _scratchCorners[3].x=DOME_R*Math.sin(az1)*Math.cos(el0); _scratchCorners[3].y=DOME_R*Math.cos(az1)*Math.cos(el0); _scratchCorners[3].z=DOME_R*Math.sin(el0);
-
       const pts = [];
       let skip = false;
       for (let i=0; i<4; i++) {
@@ -502,7 +508,6 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview, palette='A',
       (cell.hit ? redCells : greenCells).push(pts);
     }
   }
-
   const isB = palette === 'B';
   const blockedFill = isB ? 'rgba(255,150,70,0.28)' : 'rgba(220,30,20,0.35)';
   const clearFill = isB ? 'rgba(90,170,255,0.24)' : 'rgba(20,200,60,0.2)';
@@ -514,7 +519,6 @@ function drawDomeOverlay(ctx, w, h, viewer, ctCart, enuTx, skyview, palette='A',
   ctx.beginPath();
   for (const p of redCells) { ctx.moveTo(p[0],p[1]); ctx.lineTo(p[2],p[3]); ctx.lineTo(p[4],p[5]); ctx.lineTo(p[6],p[7]); ctx.closePath(); }
   ctx.fill();
-
   ctx.fillStyle = clearFill;
   ctx.beginPath();
   for (const p of greenCells) { ctx.moveTo(p[0],p[1]); ctx.lineTo(p[2],p[3]); ctx.lineTo(p[4],p[5]); ctx.lineTo(p[6],p[7]); ctx.closePath(); }
@@ -570,7 +574,6 @@ function drawPolarPlot(canvas, skyview, azimuthDeg, palette='A') {
   const axisStroke = isB ? 'rgba(255,190,120,0.9)' : 'rgba(255,220,40,0.8)';
   const dotFill = isB ? '#ffb36f' : 'cyan';
 
-  // Transparent background — just a subtle outline
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
   ctx.fillStyle = 'rgba(10,12,20,0.4)'; ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.stroke();
@@ -580,20 +583,15 @@ function drawPolarPlot(canvas, skyview, azimuthDeg, palette='A') {
     ctx.textAlign = 'center'; ctx.fillText('No data', cx, cy);
     return;
   }
-
   const minEl = MIN_ELEV_DEG * Math.PI / 180, maxEl = Math.PI / 2;
   const cosMin = Math.cos(minEl);
-
   for (let ai = 0; ai < AZ_N; ai++) {
     for (let ei = 0; ei < EL_N - 1; ei++) {
       const cell = skyview.results[ai][ei];
       const az0 = (ai/AZ_N)*2*Math.PI, az1 = ((ai+1)/AZ_N)*2*Math.PI;
-      const el0 = minEl + (ei/(EL_N-1))*(maxEl-minEl);
-      const el1 = minEl + ((ei+1)/(EL_N-1))*(maxEl-minEl);
-      const d0 = r * Math.cos(el0) / cosMin;
-      const d1 = r * Math.cos(el1) / cosMin;
+      const el0 = minEl + (ei/(EL_N-1))*(maxEl-minEl), el1 = minEl + ((ei+1)/(EL_N-1))*(maxEl-minEl);
+      const d0 = r * Math.cos(el0) / cosMin, d1 = r * Math.cos(el1) / cosMin;
       const ca0 = az0 - Math.PI/2, ca1 = az1 - Math.PI/2;
-
       ctx.beginPath();
       ctx.arc(cx, cy, d0, ca0, ca1, false);
       ctx.arc(cx, cy, d1, ca1, ca0, true);
@@ -602,40 +600,84 @@ function drawPolarPlot(canvas, skyview, azimuthDeg, palette='A') {
       ctx.fill();
     }
   }
-
   ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 0.5;
   for (let i = 1; i <= 4; i++) { ctx.beginPath(); ctx.arc(cx, cy, r*i/4, 0, Math.PI*2); ctx.stroke(); }
-
   ctx.fillStyle = '#aaa'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
   ctx.fillText('N', cx, cy - r - 5); ctx.fillText('S', cx, cy + r + 13);
   ctx.fillText('E', cx + r + 10, cy + 4); ctx.fillText('W', cx - r - 10, cy + 4);
-
   const axAz = azimuthDeg * Math.PI / 180, axA = axAz - Math.PI/2;
   ctx.beginPath(); ctx.moveTo(cx, cy);
   ctx.lineTo(cx + r*0.7*Math.cos(axA), cy + r*0.7*Math.sin(axA));
   ctx.strokeStyle = axisStroke; ctx.lineWidth = 2; ctx.stroke();
-
   ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2);
   ctx.fillStyle = dotFill; ctx.fill();
-
-  // Clear sky % inside the plot
   const clear = parseFloat(skyview.pct);
   const clearColor = clear >= 85 ? '#4c4' : clear >= 78 ? '#fc4' : '#f66';
   ctx.font = 'bold 24px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillText(`${skyview.pct}%`, cx + 1, cy + 1); // shadow
+  ctx.fillText(`${skyview.pct}%`, cx + 1, cy + 1);
   ctx.fillStyle = clearColor;
   ctx.fillText(`${skyview.pct}%`, cx, cy);
+}
+
+// Overlay a second skyview on an existing polar plot (no background clear)
+function drawPolarPlotOverlay(canvas, skyview, azimuthDeg, palette='B') {
+  if (!skyview) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const cx = w/2, cy = h/2, r = w/2 - 20;
+  const isB = palette === 'B';
+  const blockedFill = isB ? 'rgba(255,150,70,0.45)' : 'rgba(220,40,30,0.45)';
+  const clearFill = isB ? 'rgba(80,170,255,0.3)' : 'rgba(30,180,60,0.3)';
+  const axisStroke = isB ? 'rgba(255,190,120,0.9)' : 'rgba(255,220,40,0.8)';
+
+  const minEl = MIN_ELEV_DEG * Math.PI / 180, maxEl = Math.PI / 2;
+  const cosMin = Math.cos(minEl);
+  for (let ai = 0; ai < AZ_N; ai++) {
+    for (let ei = 0; ei < EL_N - 1; ei++) {
+      const cell = skyview.results[ai][ei];
+      if (!cell.inside) continue;
+      const az0 = (ai/AZ_N)*2*Math.PI, az1 = ((ai+1)/AZ_N)*2*Math.PI;
+      const el0 = minEl + (ei/(EL_N-1))*(maxEl-minEl), el1 = minEl + ((ei+1)/(EL_N-1))*(maxEl-minEl);
+      const d0 = r * Math.cos(el0) / cosMin, d1 = r * Math.cos(el1) / cosMin;
+      const ca0 = az0 - Math.PI/2, ca1 = az1 - Math.PI/2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, d0, ca0, ca1, false);
+      ctx.arc(cx, cy, d1, ca1, ca0, true);
+      ctx.closePath();
+      ctx.fillStyle = cell.hit ? blockedFill : clearFill;
+      ctx.fill();
+    }
+  }
+  // B axis line
+  const axAz = azimuthDeg * Math.PI / 180, axA = axAz - Math.PI/2;
+  ctx.beginPath(); ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + r*0.7*Math.cos(axA), cy + r*0.7*Math.sin(axA));
+  ctx.strokeStyle = axisStroke; ctx.lineWidth = 2; ctx.stroke();
+}
+
+// Draw just an azimuth axis line on an existing polar plot (no clear)
+function drawPolarAxisOverlay(canvas, azimuthDeg, palette='A') {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const cx = w/2, cy = h/2, r = w/2 - 20;
+  const isB = palette === 'B';
+  const axisStroke = isB ? 'rgba(255,190,120,0.9)' : 'rgba(255,220,40,0.8)';
+  const axAz = azimuthDeg * Math.PI / 180, axA = axAz - Math.PI/2;
+  ctx.beginPath(); ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + r*0.7*Math.cos(axA), cy + r*0.7*Math.sin(axA));
+  ctx.strokeStyle = axisStroke; ctx.lineWidth = 2; ctx.stroke();
 }
 
 // ============================================================
 // MAIN
 // ============================================================
 async function main() {
-  const polarFloat = document.getElementById('polarFloat');
-  const polarLabel = document.getElementById('polarLabel');
+  const polarPanel = document.getElementById('polarPanel');
   const statusLine = document.getElementById('statusLine');
   const placementHint = document.getElementById('placementHint');
+  const comboStats = document.getElementById('comboStats');
+  const azReadout = document.getElementById('azReadout');
 
   function setStatus(msg, tone='') {
     statusLine.className = '';
@@ -656,7 +698,7 @@ async function main() {
   resizeOverlay();
   window.addEventListener('resize', resizeOverlay);
 
-  const sceneConfig = { api_key: 'GOOGLE_MAPS_API_KEY', lat: 47.6695, lon: -122.1055 };
+  const sceneConfig = { api_key: 'GOOGLE_MAPS_API_KEY', lat: 47.66952, lon: -122.10550 };
 
   Cesium.GoogleMaps.defaultApiKey = sceneConfig.api_key;
   Cesium.RequestScheduler.requestsByServer["tile.googleapis.com:443"] = IS_MOBILE ? 10 : 18;
@@ -671,65 +713,44 @@ async function main() {
   });
   viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date('2025-06-21T20:00:00Z'));
   viewer.clock.shouldAnimate = false;
-
   viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#87CEEB');
   viewer.scene.sun.show = true;
   viewer.scene.moon.show = false;
   viewer.scene.skyBox.show = false;
   viewer.scene.skyAtmosphere.show = true;
   viewer.scene.useDepthPicking = true;
-
   if (IS_MOBILE) {
     viewer.scene.fog.enabled = false;
     viewer.scene.globe && (viewer.scene.globe.tileCacheSize = 50);
   }
 
-  // Camera — use Cesium defaults, just set mobile touch mapping
   const cc = viewer.scene.screenSpaceCameraController;
   cc.minimumZoomDistance = 5;
   cc.inertiaZoom = 0.78;
   cc.maximumMovementRatio = 0.15;
 
-  // Google-Earth-like zoom numerology (smooth exponential response)
-  // Target: keep mobile and desktop feel close, with slightly slower touch zoom.
   function zoomFactorForHeight(hMeters) {
     const clamped = Math.max(15, Math.min(15000, hMeters));
     const t = Math.log10(clamped) / Math.log10(15000);
     const base = 1.55 + (5.6 - 1.55) * t;
     return IS_MOBILE ? base * 0.92 : base;
   }
-
   function retuneZoom() {
     const h = viewer.camera.positionCartographic?.height || 200;
     cc.zoomFactor = zoomFactorForHeight(h);
   }
-
   retuneZoom();
   viewer.camera.changed.addEventListener(retuneZoom);
 
-  // Debug hooks for automated zoom-flow benchmarking.
+  // Debug hooks
   function getCameraMetrics() {
     const h = viewer.camera.positionCartographic?.height || 0;
     return { height: h, zoomFactor: cc.zoomFactor, isMobile: IS_MOBILE };
   }
-
-  async function runSyntheticZoomBenchmark({
-    startHeight = 2000,
-    targetHeight = 200,
-    maxSteps = 120,
-    settleMs = 16,
-  } = {}) {
+  async function runSyntheticZoomBenchmark({ startHeight = 2000, targetHeight = 200, maxSteps = 120, settleMs = 16 } = {}) {
     const destination = Cesium.Cartesian3.fromDegrees(sceneConfig.lon, sceneConfig.lat, startHeight);
-    viewer.camera.setView({
-      destination,
-      orientation: {
-        heading: Cesium.Math.toRadians(-30),
-        pitch: Cesium.Math.toRadians(-45),
-        roll: 0,
-      },
-    });
+    viewer.camera.setView({ destination, orientation: { heading: Cesium.Math.toRadians(-30), pitch: Cesium.Math.toRadians(-45), roll: 0 } });
     retuneZoom();
-
     const start = performance.now();
     const heights = [];
     let steps = 0;
@@ -742,24 +763,9 @@ async function main() {
       steps++;
       await new Promise(r => setTimeout(r, settleMs));
     }
-    const endHeight = viewer.camera.positionCartographic?.height || 0;
-    return {
-      isMobile: IS_MOBILE,
-      startHeight,
-      targetHeight,
-      endHeight,
-      steps,
-      elapsedMs: Math.round(performance.now() - start),
-      zoomFactor: cc.zoomFactor,
-      firstHeights: heights.slice(0, 8).map(v => +v.toFixed(2)),
-    };
+    return { isMobile: IS_MOBILE, startHeight, targetHeight, endHeight: viewer.camera.positionCartographic?.height || 0, steps, elapsedMs: Math.round(performance.now() - start), zoomFactor: cc.zoomFactor, firstHeights: heights.slice(0, 8).map(v => +v.toFixed(2)) };
   }
-
-  window.__skyviewDebug = {
-    getCameraMetrics,
-    runSyntheticZoomBenchmark,
-    getZoomFactorForHeight: zoomFactorForHeight,
-  };
+  window.__skyviewDebug = { getCameraMetrics, runSyntheticZoomBenchmark, getZoomFactorForHeight: zoomFactorForHeight };
 
   if (IS_MOBILE) {
     cc.zoomEventTypes = [Cesium.CameraEventType.PINCH];
@@ -775,113 +781,135 @@ async function main() {
     setStatus('Could not load Google 3D tiles.', 'error');
   }
 
-  // Camera
-  const initCart = Cesium.Cartesian3.fromDegrees(sceneConfig.lon, sceneConfig.lat, 50);
+  const initCart = Cesium.Cartesian3.fromDegrees(sceneConfig.lon, sceneConfig.lat, 5);
   const initTx = Cesium.Transforms.eastNorthUpToFixedFrame(initCart);
-  viewer.scene.camera.lookAtTransform(initTx,
-    new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30), Cesium.Math.toRadians(-25), 200));
+  viewer.scene.camera.lookAtTransform(initTx, new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30), Cesium.Math.toRadians(-55), 140));
   viewer.scene.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
 
-  // State
+  // ============================================================
+  // STATE
+  // ============================================================
   const observers = {
     A: { id: 'A', cart: null, carto: null, dH: 0, yaw: 0, skyview: null, raised: null, enuTx: null },
     B: { id: 'B', cart: null, carto: null, dH: 0, yaw: 180, skyview: null, raised: null, enuTx: null },
   };
-  let selectedObserverId = 'A';
-  let overlayMode = 'A'; // A | B | UNION
+  let selectedId = 'A';
+  let dualMode = false;
+  let azOpposed = true;  // when on, B.yaw = A.yaw + 180 automatically
   let derived = null;
   let raytraceToken = 0;
   let raytraceTimer = null;
   let placementMode = false;
-  let placementSlot = 'A';
 
-  const numAz = document.getElementById('numAz');
   const numH = document.getElementById('numHeight');
   const pinBtn = document.getElementById('pinBtn');
   const selectABtn = document.getElementById('selectA');
   const selectBBtn = document.getElementById('selectB');
   const demoBtn = document.getElementById('demoBtn');
   const demosSheet = document.getElementById('demosSheet');
-  const vennPanel = document.getElementById('vennPanel');
-  const vennA = document.getElementById('vennA');
-  const vennB = document.getElementById('vennB');
-  const vennMix = document.getElementById('vennMix');
-  const vennAPct = document.getElementById('vennAPct');
-  const vennBPct = document.getElementById('vennBPct');
-  const vennMeta = document.getElementById('vennMeta');
+  const dualToggle = document.getElementById('dualToggle');
+  const btnAzOppose = document.getElementById('btnAzOppose');
+  const slotB = document.getElementById('slotB');
+  const mainPlotLabel = document.getElementById('mainPlotLabel');
 
-  function getSelectedObserver() { return observers[selectedObserverId]; }
+  function sel() { return observers[selectedId]; }
   function hasA() { return !!observers.A.cart; }
   function hasB() { return !!observers.B.cart; }
-  function showUiPanels() {
-    polarFloat.style.display = 'block';
-    vennPanel.style.display = 'block';
-  }
 
   function setObserverCartesian(id, cart) {
     const o = observers[id];
-    if (!o) return;
     o.cart = cart;
     o.carto = Cesium.Cartographic.fromCartesian(cart);
   }
 
-  function updateObserverButtons() {
-    selectABtn.classList.toggle('active', selectedObserverId === 'A');
-    selectBBtn.classList.toggle('active', selectedObserverId === 'B');
+  // ── UI sync ──
+  function syncUi() {
+    // Point tabs
+    selectABtn.classList.toggle('active', selectedId === 'A');
+    selectBBtn.classList.toggle('active', selectedId === 'B');
+    selectBBtn.classList.toggle('disabled', !dualMode);
+    // Dual toggle
+    dualToggle.classList.toggle('on', dualMode);
+    // Slot B visibility
+    slotB.style.display = dualMode ? 'flex' : 'none';
+    // Small row: only visible in dual mode
+    const smallRow = document.getElementById('smallRow');
+    smallRow.style.display = dualMode ? 'flex' : 'none';
+    // Reorder small slots based on relative position of A and B
+    if (dualMode && hasA() && hasB()) {
+      const aIsLeft = isALeftOfB();
+      const slotAEl = document.getElementById('slotA');
+      const slotBEl = document.getElementById('slotB');
+      // CSS order: lower = further left
+      slotAEl.style.order = aIsLeft ? '0' : '1';
+      slotBEl.style.order = aIsLeft ? '1' : '0';
+    }
+    // Height
+    numH.value = sel().dH;
+    // Az readout — always shows A
+    azReadout.textContent = `Az ${observers.A.yaw}°`;
+    // Az oppose toggle
+    btnAzOppose.classList.toggle('active', azOpposed);
+    // Main plot label
+    if (dualMode && hasA() && hasB() && derived) {
+      mainPlotLabel.textContent = `A+B ${derived.unionMask.pct}%`;
+    } else if (hasA() && observers.A.skyview) {
+      const lat = Cesium.Math.toDegrees(observers.A.carto.latitude).toFixed(5);
+      const lon = Cesium.Math.toDegrees(observers.A.carto.longitude).toFixed(5);
+      mainPlotLabel.textContent = `${observers.A.skyview.pct}% · ${lat}, ${lon}`;
+    } else if (hasA() && observers.A.carto) {
+      const lat = Cesium.Math.toDegrees(observers.A.carto.latitude).toFixed(5);
+      const lon = Cesium.Math.toDegrees(observers.A.carto.longitude).toFixed(5);
+      mainPlotLabel.textContent = `${lat}, ${lon}`;
+    } else {
+      mainPlotLabel.textContent = '';
+    }
+    // Labels
+    updateLabels();
+    // Combo stats
+    updateComboStats();
   }
 
-  function updateObserverUi() {
-    const o = getSelectedObserver();
-    numAz.value = o.yaw;
-    numH.value = o.dH;
-    updateObserverButtons();
+  // Determine if A is to the left of B from the camera's perspective.
+  // Uses the bearing from A to B: if B is roughly east of A (bearing 0-180),
+  // A is on the left. We use a simple longitude/latitude comparison projected
+  // onto the camera's right-vector for accuracy at any viewing angle.
+  function isALeftOfB() {
+    if (!observers.A.cart || !observers.B.cart) return true;
+    // Project both points to screen space and compare x
+    const spA = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, observers.A.cart);
+    const spB = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, observers.B.cart);
+    if (spA && spB) return spA.x <= spB.x;
+    // Fallback: use longitude
+    if (observers.A.carto && observers.B.carto) {
+      return observers.A.carto.longitude <= observers.B.carto.longitude;
+    }
+    return true;
   }
 
-  function updatePolarLabel() {
-    const o = getSelectedObserver();
-    if (!o?.carto) { polarLabel.textContent = ''; return; }
-    const lat = Cesium.Math.toDegrees(o.carto.latitude);
-    const lon = Cesium.Math.toDegrees(o.carto.longitude);
-    polarLabel.textContent = `${selectedObserverId}: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  function updateLabels() {
+    for (const id of ['A', 'B']) {
+      const o = observers[id];
+      const el = document.getElementById(`label${id}`);
+      if (!o.carto) { el.textContent = id; continue; }
+      const lat = Cesium.Math.toDegrees(o.carto.latitude).toFixed(4);
+      const lon = Cesium.Math.toDegrees(o.carto.longitude).toFixed(4);
+      const pct = o.skyview ? ` ${o.skyview.pct}%` : '';
+      el.textContent = `${id}: ${lat}, ${lon}${pct}`;
+    }
   }
 
-  function getActiveMask() {
-    if (overlayMode === 'B' && hasB()) return observers.B.skyview;
-    if (overlayMode === 'UNION' && derived?.unionMask) return derived.unionMask;
-    return observers.A.skyview;
-  }
-
-  function getActiveYaw() {
-    if (overlayMode === 'B' && hasB()) return observers.B.yaw;
-    return observers.A.yaw;
-  }
-
-  function updateVennUi() {
-    if (!hasA()) {
-      vennAPct.textContent = '--';
-      vennBPct.textContent = '--';
-      vennMix.textContent = 'A+B';
-      vennMeta.textContent = 'Place A and B to compare.';
-      vennA.classList.remove('vennActive');
-      vennB.classList.remove('vennActive');
-      vennMix.classList.remove('vennActive');
+  function updateComboStats() {
+    if (!dualMode || !derived) {
+      comboStats.textContent = '';
       return;
     }
-    vennAPct.textContent = observers.A.skyview ? `${observers.A.skyview.pct}%` : '--';
-    vennBPct.textContent = observers.B.skyview ? `${observers.B.skyview.pct}%` : '--';
+    const gain = derived.gainPct >= 0 ? `+${derived.gainPct.toFixed(1)}%` : `${derived.gainPct.toFixed(1)}%`;
+    comboStats.textContent = `A+B ${derived.unionMask.pct}% · Overlap ${derived.overlapPct.toFixed(1)}% · Gain ${gain}`;
+  }
 
-    if (derived?.unionMask) {
-      vennMix.textContent = `A+B ${derived.unionMask.pct}%`;
-      const gain = derived.gainPct >= 0 ? `+${derived.gainPct.toFixed(1)}%` : `${derived.gainPct.toFixed(1)}%`;
-      vennMeta.textContent = `Overlap ${derived.overlapPct.toFixed(1)}% · Gain ${gain}`;
-    } else {
-      vennMix.textContent = 'A+B';
-      vennMeta.textContent = hasB() ? 'Analyzing dual projection…' : 'Place B to unlock combo.';
-    }
-
-    vennA.classList.toggle('vennActive', overlayMode === 'A');
-    vennB.classList.toggle('vennActive', overlayMode === 'B');
-    vennMix.classList.toggle('vennActive', overlayMode === 'UNION');
+  function showPolarPanel() {
+    polarPanel.style.display = 'flex';
   }
 
   function showSpinner() {
@@ -890,14 +918,17 @@ async function main() {
   }
   function hideSpinner() {
     pinBtn.classList.remove('processing');
-    const active = getActiveMask();
-    if (active?.pct) {
-      if (overlayMode === 'UNION') setStatus(`Combined clear sky ${active.pct}%`, 'success');
-      else setStatus(`Clear sky ${active.pct}%`, 'success');
+    if (observers.A.skyview) {
+      const pctA = observers.A.skyview.pct;
+      if (dualMode && derived) {
+        setStatus(`A ${pctA}% · A+B ${derived.unionMask.pct}%`, 'success');
+      } else {
+        setStatus(`Clear sky ${pctA}%`, 'success');
+      }
     }
   }
 
-  // Camera-idle overlay
+  // ── Camera idle overlay ──
   let cameraIdleTimer = null;
   let lastCameraPos = new Cesium.Cartesian3();
   const IDLE_DELAY = IS_MOBILE ? 200 : 100;
@@ -911,13 +942,14 @@ async function main() {
     for (const def of defs) {
       const o = observers[def.id];
       if (!o?.cart) continue;
+      if (def.id === 'B' && !dualMode) continue;
       const gc = Cesium.Cartographic.fromCartesian(o.cart);
       const raised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + o.dH);
       const sp = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, raised);
       if (!sp) continue;
       const x = sp.x * OV_DPR, y = sp.y * OV_DPR;
       ovCtx.beginPath();
-      ovCtx.arc(x, y, (def.id === selectedObserverId ? 7 : 6) * OV_DPR, 0, Math.PI*2);
+      ovCtx.arc(x, y, (def.id === selectedId ? 7 : 6) * OV_DPR, 0, Math.PI*2);
       ovCtx.fillStyle = def.color;
       ovCtx.fill();
       ovCtx.strokeStyle = 'white';
@@ -937,19 +969,36 @@ async function main() {
     if (!maskA) return;
     ovCanvas.style.opacity = '1';
 
-    if (overlayMode === 'UNION' && maskB) {
-      drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, observers.A.raised, observers.A.enuTx, maskA, 'A', true);
-      drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, observers.B.raised, observers.B.enuTx, maskB, 'B', false);
-      drawPointMarkers(false);
-      return;
-    }
-    if (overlayMode === 'B' && maskB) {
-      drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, observers.B.raised, observers.B.enuTx, maskB, 'B', true);
-      drawPointMarkers(false);
-      return;
-    }
+    // Always draw A dome
     drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, observers.A.raised, observers.A.enuTx, maskA, 'A', true);
+    // Draw B dome on top if dual mode and B exists
+    if (dualMode && maskB) {
+      drawDomeOverlay(ovCtx, ovCanvas.width, ovCanvas.height, viewer, observers.B.raised, observers.B.enuTx, maskB, 'B', false);
+    }
     drawPointMarkers(false);
+  }
+
+  function refreshPolarPlots() {
+    const canvasMain = document.getElementById('polarCanvasMain');
+    const canvasA = document.getElementById('polarCanvasA');
+    const canvasB = document.getElementById('polarCanvasB');
+
+    // Main plot: union mask when dual and both exist, otherwise A
+    if (dualMode && derived?.unionMask) {
+      // Draw the union mask (clear = either A or B clear) using A palette
+      drawPolarPlot(canvasMain, derived.unionMask, observers.A.yaw, 'A');
+      // Overlay both axis lines so you can see both azimuths
+      drawPolarAxisOverlay(canvasMain, observers.A.yaw, 'A');
+      drawPolarAxisOverlay(canvasMain, observers.B.yaw, 'B');
+    } else {
+      drawPolarPlot(canvasMain, observers.A.skyview, observers.A.yaw, 'A');
+    }
+
+    // Small individual plots
+    drawPolarPlot(canvasA, observers.A.skyview, observers.A.yaw, 'A');
+    if (dualMode) {
+      drawPolarPlot(canvasB, observers.B.skyview, observers.B.yaw, 'B');
+    }
   }
 
   function runRaytrace() {
@@ -964,6 +1013,7 @@ async function main() {
         for (const id of ['A', 'B']) {
           const o = observers[id];
           if (!o.cart) continue;
+          if (id === 'B' && !dualMode) continue;
           const gc = Cesium.Cartographic.fromCartesian(o.cart);
           const raised = Cesium.Cartesian3.fromRadians(gc.longitude, gc.latitude, gc.height + o.dH);
           const enuTx = Cesium.Transforms.eastNorthUpToFixedFrame(raised);
@@ -972,7 +1022,6 @@ async function main() {
               .then(mask => ({ id, mask, raised, enuTx, yaw: o.yaw }))
           );
         }
-
         const resolved = await Promise.all(jobs);
         if (token !== raytraceToken) return;
 
@@ -993,13 +1042,8 @@ async function main() {
           : null;
 
         redrawOverlayNow();
-        const activeMask = getActiveMask();
-        if (activeMask) {
-          const palette = overlayMode === 'B' ? 'B' : 'A';
-          drawPolarPlot(document.getElementById('polarCanvas'), activeMask, getActiveYaw(), palette);
-        }
-        updatePolarLabel();
-        updateVennUi();
+        refreshPolarPlots();
+        syncUi();
       } catch (e) {
         console.warn('Raytrace error:', e);
         setStatus('Raytrace failed. Try again.', 'error');
@@ -1023,76 +1067,113 @@ async function main() {
   });
 
   function tuneCameraForPreset(lat, lon) {
-    viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(lon, lat - 0.00018, 430),
-      orientation: {
-        heading: Cesium.Math.toRadians(-25),
-        pitch: Cesium.Math.toRadians(-47),
-        roll: 0,
-      },
-      duration: 1.1,
-    });
+    // Use steep pitch so the look-at target appears at screen center.
+    // At -55° pitch and 140m range, the camera is ~115m above and ~80m away,
+    // keeping the ground point near the center of the viewport.
+    const target = Cesium.Cartesian3.fromDegrees(lon, lat, 5);
+    const tx = Cesium.Transforms.eastNorthUpToFixedFrame(target);
+    viewer.scene.camera.lookAtTransform(tx,
+      new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30), Cesium.Math.toRadians(-55), 140));
+    viewer.scene.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  }
+
+  // ============================================================
+  // DEMOS
+  // ============================================================
+  // Clamp a lat/lon to the actual 3D tile surface by raycasting down
+  function clampToSurface(lat, lon) {
+    const high = Cesium.Cartesian3.fromDegrees(lon, lat, 500);
+    const dir = Cesium.Cartesian3.normalize(
+      Cesium.Cartesian3.negate(high, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+    // Normalize to point toward Earth center
+    const ellNorm = Cesium.Cartesian3.normalize(high, new Cesium.Cartesian3());
+    Cesium.Cartesian3.negate(ellNorm, dir);
+    const ray = new Cesium.Ray(high, dir);
+    const pick = viewer.scene.pickFromRay(ray, []);
+    if (pick && pick.position) return pick.position;
+    // Fallback: return at height 0
+    return Cesium.Cartesian3.fromDegrees(lon, lat, 0);
   }
 
   function applyDemo(name) {
     if (name === 'single') {
-      setObserverCartesian('A', Cesium.Cartesian3.fromDegrees(PRESET_ANCHOR.lon, PRESET_ANCHOR.lat, 0));
+      const cartA = clampToSurface(47.66952, -122.10550);
+      setObserverCartesian('A', cartA);
       observers.A.dH = 0; observers.A.yaw = 0;
       observers.B.cart = null; observers.B.carto = null; observers.B.skyview = null;
-      selectedObserverId = 'A'; overlayMode = 'A';
-      tuneCameraForPreset(PRESET_ANCHOR.lat, PRESET_ANCHOR.lon);
+      selectedId = 'A'; dualMode = false;
+      tuneCameraForPreset(47.66952, -122.10550);
     }
     if (name === 'dual') {
-      setObserverCartesian('A', Cesium.Cartesian3.fromDegrees(-122.1055399, 47.6695, 0));
-      observers.A.dH = -6; observers.A.yaw = 0;
-      setObserverCartesian('B', Cesium.Cartesian3.fromDegrees(-122.1054601, 47.6695, 0));
-      observers.B.dH = -6; observers.B.yaw = 180;
-      selectedObserverId = 'A'; overlayMode = 'UNION';
-      tuneCameraForPreset(PRESET_ANCHOR.lat, PRESET_ANCHOR.lon);
-    }
-    if (name === 'randomDual') {
-      setObserverCartesian('A', Cesium.Cartesian3.fromDegrees(RANDOM_DUAL.lon - RANDOM_DUAL.offsetLon, RANDOM_DUAL.lat, 0));
-      observers.A.dH = RANDOM_DUAL.dH; observers.A.yaw = RANDOM_DUAL.yawA;
-      setObserverCartesian('B', Cesium.Cartesian3.fromDegrees(RANDOM_DUAL.lon + RANDOM_DUAL.offsetLon, RANDOM_DUAL.lat, 0));
-      observers.B.dH = RANDOM_DUAL.dH; observers.B.yaw = (RANDOM_DUAL.yawA + 180) % 360;
-      selectedObserverId = 'A'; overlayMode = 'UNION';
-      tuneCameraForPreset(RANDOM_DUAL.lat, RANDOM_DUAL.lon);
-    }
-    if (name === 'clearB') {
-      observers.B.cart = null; observers.B.carto = null; observers.B.skyview = null;
-      if (selectedObserverId === 'B') selectedObserverId = 'A';
-      overlayMode = 'A';
+      const cartA = clampToSurface(47.66952, -122.10550);
+      setObserverCartesian('A', cartA);
+      observers.A.dH = 0; observers.A.yaw = 0;
+      const cartB = clampToSurface(47.66950, -122.10560);
+      setObserverCartesian('B', cartB);
+      observers.B.dH = 0; observers.B.yaw = 180;
+      selectedId = 'A'; dualMode = true;
+      tuneCameraForPreset(47.66951, -122.10555);
     }
     hasPoint = hasA();
     if (hasPoint) {
-      showUiPanels();
+      showPolarPanel();
       placementHint.style.display = 'none';
-      updateObserverUi();
-      updatePolarLabel();
-      updateVennUi();
+      syncUi();
       runRaytrace();
     }
   }
 
-  function setOverlayMode(mode) {
-    if (mode === 'B' && !hasB()) return;
-    if (mode === 'UNION' && !hasB()) return;
-    overlayMode = mode;
-    if (mode === 'A') selectedObserverId = 'A';
-    if (mode === 'B') selectedObserverId = 'B';
-    updateObserverUi();
-    updatePolarLabel();
-    updateVennUi();
-    redrawOverlayNow();
-    const activeMask = getActiveMask();
-    if (activeMask) drawPolarPlot(document.getElementById('polarCanvas'), activeMask, getActiveYaw(), mode === 'B' ? 'B' : 'A');
+  // ============================================================
+  // AZIMUTH
+  // ============================================================
+  function setAzimuth(deg, sourceId) {
+    const v = ((Math.round(deg) % 360) + 360) % 360;
+    observers[sourceId].yaw = v;
+    if (azOpposed && dualMode) {
+      // B is always A + 180
+      if (sourceId === 'A') {
+        observers.B.yaw = (v + 180) % 360;
+      } else {
+        // Dragging B: derive A as B - 180
+        observers.A.yaw = (v + 180) % 360;
+      }
+    }
+    syncUi();
+    if (hasA()) runRaytrace();
+  }
+
+  function toggleOppose() {
+    azOpposed = !azOpposed;
+    if (azOpposed && dualMode) {
+      // Snap B to A + 180 immediately
+      observers.B.yaw = (observers.A.yaw + 180) % 360;
+      syncUi();
+      if (hasA() && hasB()) runRaytrace();
+    } else {
+      syncUi();
+    }
   }
 
   // ============================================================
-  // INPUT
+  // HEIGHT
+  // ============================================================
+  function setHeight(v) {
+    const o = sel();
+    o.dH = Math.max(-40, Math.min(40, Math.round(v * 10) / 10));
+    numH.value = o.dH;
+    if (o.cart) runRaytrace();
+  }
+
+  numH.addEventListener('change', () => setHeight(+numH.value));
+  document.getElementById('btnHMinus').addEventListener('click', () => setHeight(sel().dH - 1));
+  document.getElementById('btnHPlus').addEventListener('click', () => setHeight(sel().dH + 1));
+
+  // ============================================================
+  // INPUT — placement
   // ============================================================
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-  function placePoint(pos, slot = selectedObserverId) {
+
+  function placePoint(pos, slot = selectedId) {
     const cart = viewer.scene.pickPosition(pos);
     if (!cart) {
       pinBtn.style.background = '#a33'; pinBtn.style.borderColor = '#f66';
@@ -1101,69 +1182,106 @@ async function main() {
       return;
     }
     setObserverCartesian(slot, cart);
-
-    if (slot === 'B') {
-      overlayMode = 'UNION';
-      selectedObserverId = 'B';
-    } else if (!hasB()) {
-      overlayMode = 'A';
-      selectedObserverId = 'A';
-    }
-
     hasPoint = hasA();
     if (hasPoint) {
-      showUiPanels();
+      showPolarPanel();
       placementHint.style.display = 'none';
     }
-    updateObserverUi();
-    updatePolarLabel();
-    updateVennUi();
+    syncUi();
     drawPointMarkers();
     setStatus(`${slot} placed. Running analysis…`, 'warn');
     runRaytrace();
   }
 
-  // Right-click places currently selected point on desktop.
-  handler.setInputAction(function(click) { placePoint(click.position, selectedObserverId); }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+  handler.setInputAction(function(click) { placePoint(click.position, selectedId); }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
   viewer.scene.canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-  function enterPlacementMode(slot = selectedObserverId) {
+  function enterPlacementMode() {
     placementMode = true;
-    placementSlot = slot;
     pinBtn.classList.add('active');
     viewer.scene.canvas.style.cursor = 'crosshair';
-    setStatus(`Placement mode ${slot}: tap map to place point ${slot}.`, 'warn');
+    setStatus(`Placement mode ${selectedId}: tap map to place point ${selectedId}.`, 'warn');
   }
   function exitPlacementMode() {
     placementMode = false;
     pinBtn.classList.remove('active');
     viewer.scene.canvas.style.cursor = '';
-    if (!getActiveMask()?.pct) setStatus('Ready.', '');
+    if (!observers.A.skyview?.pct) setStatus('Ready.', '');
   }
 
   pinBtn.addEventListener('click', () => {
     if (placementMode) exitPlacementMode();
-    else enterPlacementMode(selectedObserverId);
+    else enterPlacementMode();
   });
 
   handler.setInputAction(function(click) {
     if (!placementMode) return;
-    placePoint(click.position, placementSlot);
+    placePoint(click.position, selectedId);
     exitPlacementMode();
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-  function resetCamera() {
-    viewer.scene.camera.lookAtTransform(initTx,
-      new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30),Cesium.Math.toRadians(-25),200));
-    viewer.scene.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-  }
-
-  window.addEventListener('keydown', e => {
-    if (document.activeElement === document.getElementById('searchInput')) return;
-    if (e.key==='r'||e.key==='R') resetCamera();
+  // ============================================================
+  // POINT SELECTION
+  // ============================================================
+  selectABtn.addEventListener('click', () => {
+    selectedId = 'A';
+    syncUi();
+  });
+  selectBBtn.addEventListener('click', () => {
+    if (!dualMode) return;
+    selectedId = 'B';
+    syncUi();
+    if (!hasB()) {
+      setStatus('Point B selected. Tap pin and place B.', 'warn');
+      enterPlacementMode();
+    }
   });
 
-  // Search
+  // ============================================================
+  // DUAL TOGGLE
+  // ============================================================
+  dualToggle.addEventListener('click', () => {
+    dualMode = !dualMode;
+    if (!dualMode) {
+      // Turning off dual: switch to A, clear B dome overlay
+      selectedId = 'A';
+      derived = null;
+    } else {
+      // Turning on dual: if no B placed yet, prompt
+      if (!hasB() && hasA()) {
+        selectedId = 'B';
+        setStatus('Dual mode on. Place point B.', 'warn');
+        enterPlacementMode();
+      }
+    }
+    syncUi();
+    if (hasA()) {
+      redrawOverlayNow();
+      refreshPolarPlots();
+    }
+  });
+
+  // ============================================================
+  // AZ LOCK & OPPOSE
+  // ============================================================
+  btnAzOppose.addEventListener('click', () => {
+    toggleOppose();
+  });
+
+  // ============================================================
+  // DEMOS SHEET
+  // ============================================================
+  function openDemos() { demosSheet.classList.remove('hide'); }
+  function closeDemos() { demosSheet.classList.add('hide'); }
+  demoBtn.addEventListener('click', () => {
+    if (demosSheet.classList.contains('hide')) openDemos(); else closeDemos();
+  });
+  document.getElementById('demoSingle').addEventListener('click', () => { applyDemo('single'); closeDemos(); });
+  document.getElementById('demoDual').addEventListener('click', () => { applyDemo('dual'); closeDemos(); });
+
+  // ============================================================
+  // SEARCH
+  // ============================================================
   const searchInput = document.getElementById('searchInput');
   searchInput.addEventListener('keydown', async e => {
     if (e.key !== 'Enter') return;
@@ -1191,116 +1309,61 @@ async function main() {
     }
   });
 
-  // Toolbar — bottom bar controls
-  function setAzimuth(v) {
-    const o = getSelectedObserver();
-    o.yaw = ((Math.round(v) % 360) + 360) % 360;
-    numAz.value = o.yaw;
-    if (o.cart) runRaytrace();
-  }
-  function setHeight(v) {
-    const o = getSelectedObserver();
-    if (v <= -40) o.dH = -40;
-    else if (v >= 40) o.dH = 40;
-    else o.dH = Math.round(v * 10) / 10;
-    numH.value = o.dH;
-    if (o.cart) runRaytrace();
-  }
-
-  numAz.addEventListener('change', () => setAzimuth(+numAz.value));
-  document.getElementById('btnAzMinus').addEventListener('click', () => setAzimuth(getSelectedObserver().yaw - 10));
-  document.getElementById('btnAzPlus').addEventListener('click', () => setAzimuth(getSelectedObserver().yaw + 10));
-  numH.addEventListener('change', () => setHeight(+numH.value));
-  document.getElementById('btnHMinus').addEventListener('click', () => setHeight(getSelectedObserver().dH - 1));
-  document.getElementById('btnHPlus').addEventListener('click', () => setHeight(getSelectedObserver().dH + 1));
-
-  selectABtn.addEventListener('click', () => {
-    selectedObserverId = 'A';
-    setOverlayMode('A');
-  });
-  selectBBtn.addEventListener('click', () => {
-    if (!hasA()) {
-      setStatus('Place point A first, then add B.', 'warn');
-      return;
-    }
-    selectedObserverId = 'B';
-    updateObserverUi();
-    if (!hasB()) {
-      setStatus('Point B selected. Tap pin and place B.', 'warn');
-      enterPlacementMode('B');
-    } else {
-      setOverlayMode('B');
-    }
-  });
-
-  for (const btn of [vennA, vennB, vennMix]) {
-    btn.addEventListener('click', () => {
-      const mode = btn.dataset.mode;
-      if (mode === 'A') setOverlayMode('A');
-      if (mode === 'B') {
-        if (!hasB()) enterPlacementMode('B');
-        else setOverlayMode('B');
-      }
-      if (mode === 'UNION') {
-        if (!hasB()) setStatus('Place B to enable combined view.', 'warn');
-        else setOverlayMode('UNION');
-      }
-    });
-  }
-
-  function openDemos() { demosSheet.classList.remove('hide'); }
-  function closeDemos() { demosSheet.classList.add('hide'); }
-  demoBtn.addEventListener('click', () => {
-    if (demosSheet.classList.contains('hide')) openDemos();
-    else closeDemos();
-  });
-  document.getElementById('demoSingle').addEventListener('click', () => { applyDemo('single'); closeDemos(); });
-  document.getElementById('demoDual').addEventListener('click', () => { applyDemo('dual'); closeDemos(); });
-  document.getElementById('demoRandomDual').addEventListener('click', () => { applyDemo('randomDual'); closeDemos(); });
-  document.getElementById('demoPlaceB').addEventListener('click', () => { selectedObserverId = 'B'; updateObserverUi(); enterPlacementMode('B'); closeDemos(); });
-  document.getElementById('demoClearB').addEventListener('click', () => { applyDemo('clearB'); closeDemos(); });
-  document.getElementById('demoClose').addEventListener('click', closeDemos);
-
   // ============================================================
   // POLAR PLOT DRAG — swipe/drag to aim azimuth
   // ============================================================
-  const polarCanvas = document.getElementById('polarCanvas');
-  let polarDragging = false;
+  function setupPolarDrag(canvasId, pointId) {
+    const canvas = document.getElementById(canvasId);
+    let dragging = false;
 
-  function polarAzFromEvent(e) {
-    const rect = polarCanvas.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const dx = clientX - cx, dy = clientY - cy;
-    // atan2(dx, -dy) → N=0, E=90, S=180, W=270
-    let deg = Math.atan2(dx, -dy) * 180 / Math.PI;
-    if (deg < 0) deg += 360;
-    return Math.round(deg / 5) * 5; // snap to 5° increments
+    function azFromEvent(e) {
+      const rect = canvas.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      let deg = Math.atan2(clientX - cx, -(clientY - cy)) * 180 / Math.PI;
+      if (deg < 0) deg += 360;
+      return Math.round(deg / 5) * 5;
+    }
+
+    function onStart(e) {
+      if (!hasPoint) return;
+      dragging = true;
+      selectedId = pointId;
+      setAzimuth(azFromEvent(e), pointId);
+    }
+    function onMove(e) {
+      if (!dragging) return;
+      e.preventDefault();
+      setAzimuth(azFromEvent(e), pointId);
+    }
+    function onEnd() { dragging = false; }
+
+    canvas.addEventListener('touchstart', onStart, { passive: true });
+    canvas.addEventListener('touchmove', onMove, { passive: false });
+    canvas.addEventListener('touchend', onEnd);
+    canvas.addEventListener('touchcancel', onEnd);
+    canvas.addEventListener('mousedown', onStart);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
   }
 
-  function onPolarStart(e) {
-    if (!hasPoint) return;
-    polarDragging = true;
-    setAzimuth(polarAzFromEvent(e));
-  }
-  function onPolarMove(e) {
-    if (!polarDragging) return;
-    e.preventDefault();
-    setAzimuth(polarAzFromEvent(e));
-  }
-  function onPolarEnd() { polarDragging = false; }
+  setupPolarDrag('polarCanvasMain', 'A'); // main plot always controls A azimuth
+  setupPolarDrag('polarCanvasA', 'A');
+  setupPolarDrag('polarCanvasB', 'B');
 
-  // Touch events
-  polarCanvas.addEventListener('touchstart', onPolarStart, { passive: true });
-  polarCanvas.addEventListener('touchmove', onPolarMove, { passive: false });
-  polarCanvas.addEventListener('touchend', onPolarEnd);
-  polarCanvas.addEventListener('touchcancel', onPolarEnd);
-  // Mouse events (desktop)
-  polarCanvas.addEventListener('mousedown', onPolarStart);
-  window.addEventListener('mousemove', onPolarMove);
-  window.addEventListener('mouseup', onPolarEnd);
+  // ============================================================
+  // KEYBOARD
+  // ============================================================
+  function resetCamera() {
+    viewer.scene.camera.lookAtTransform(initTx,
+      new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30),Cesium.Math.toRadians(-25),200));
+    viewer.scene.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  }
+  window.addEventListener('keydown', e => {
+    if (document.activeElement === searchInput) return;
+    if (e.key==='r'||e.key==='R') resetCamera();
+  });
 
   // Prevent bottom bar from passing scroll/pinch to Cesium
   const bar = document.getElementById('bottomBar');
@@ -1315,11 +1378,23 @@ async function main() {
     closeDemos();
   });
 
-  updateObserverUi();
-  updateVennUi();
-  applyDemo('single');
-
-  console.log('Skyview raytrace viewer ready');
+  // ============================================================
+  // INIT
+  // ============================================================
+  syncUi();
+  // Wait for tiles to load, then run the demo
+  function waitForTilesAndRun() {
+    const testCart = clampToSurface(47.66952, -122.10550);
+    const testCarto = Cesium.Cartographic.fromCartesian(testCart);
+    // If height is near 0, tiles aren't loaded yet — retry
+    if (Math.abs(testCarto.height) < 1) {
+      setTimeout(waitForTilesAndRun, 500);
+      return;
+    }
+    applyDemo('single');
+  }
+  setTimeout(waitForTilesAndRun, 1500);
+  console.log('Skyview 2-point viewer ready');
 }
 main().catch(e => {
   console.error(e);
