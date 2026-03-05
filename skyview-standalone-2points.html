@@ -698,7 +698,7 @@ async function main() {
   resizeOverlay();
   window.addEventListener('resize', resizeOverlay);
 
-  const sceneConfig = { api_key: 'GOOGLE_MAPS_API_KEY', lat: 47.66952, lon: -122.10550 };
+  const sceneConfig = { api_key: 'GOOGLE_MAPS_API_KEY', lat: 47.669520, lon: -122.105503 };
 
   Cesium.GoogleMaps.defaultApiKey = sceneConfig.api_key;
   Cesium.RequestScheduler.requestsByServer["tile.googleapis.com:443"] = IS_MOBILE ? 10 : 18;
@@ -781,10 +781,8 @@ async function main() {
     setStatus('Could not load Google 3D tiles.', 'error');
   }
 
-  const initCart = Cesium.Cartesian3.fromDegrees(sceneConfig.lon, sceneConfig.lat, 5);
-  const initTx = Cesium.Transforms.eastNorthUpToFixedFrame(initCart);
-  viewer.scene.camera.lookAtTransform(initTx, new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30), Cesium.Math.toRadians(-55), 140));
-  viewer.scene.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  // Initial camera — just a rough position, the demo will set the final view
+  // No lookAtTransform here to avoid fighting with the demo camera setup
 
   // ============================================================
   // STATE
@@ -852,14 +850,18 @@ async function main() {
     btnAzOppose.classList.toggle('active', azOpposed);
     // Main plot label
     if (dualMode && hasA() && hasB() && derived) {
+      const latA = Cesium.Math.toDegrees(observers.A.carto.latitude).toFixed(6);
+      const lonA = Cesium.Math.toDegrees(observers.A.carto.longitude).toFixed(6);
+      const latB = Cesium.Math.toDegrees(observers.B.carto.latitude).toFixed(6);
+      const lonB = Cesium.Math.toDegrees(observers.B.carto.longitude).toFixed(6);
       mainPlotLabel.textContent = `A+B ${derived.unionMask.pct}%`;
     } else if (hasA() && observers.A.skyview) {
-      const lat = Cesium.Math.toDegrees(observers.A.carto.latitude).toFixed(5);
-      const lon = Cesium.Math.toDegrees(observers.A.carto.longitude).toFixed(5);
+      const lat = Cesium.Math.toDegrees(observers.A.carto.latitude).toFixed(6);
+      const lon = Cesium.Math.toDegrees(observers.A.carto.longitude).toFixed(6);
       mainPlotLabel.textContent = `${observers.A.skyview.pct}% · ${lat}, ${lon}`;
     } else if (hasA() && observers.A.carto) {
-      const lat = Cesium.Math.toDegrees(observers.A.carto.latitude).toFixed(5);
-      const lon = Cesium.Math.toDegrees(observers.A.carto.longitude).toFixed(5);
+      const lat = Cesium.Math.toDegrees(observers.A.carto.latitude).toFixed(6);
+      const lon = Cesium.Math.toDegrees(observers.A.carto.longitude).toFixed(6);
       mainPlotLabel.textContent = `${lat}, ${lon}`;
     } else {
       mainPlotLabel.textContent = '';
@@ -892,8 +894,8 @@ async function main() {
       const o = observers[id];
       const el = document.getElementById(`label${id}`);
       if (!o.carto) { el.textContent = id; continue; }
-      const lat = Cesium.Math.toDegrees(o.carto.latitude).toFixed(4);
-      const lon = Cesium.Math.toDegrees(o.carto.longitude).toFixed(4);
+      const lat = Cesium.Math.toDegrees(o.carto.latitude).toFixed(6);
+      const lon = Cesium.Math.toDegrees(o.carto.longitude).toFixed(6);
       const pct = o.skyview ? ` ${o.skyview.pct}%` : '';
       el.textContent = `${id}: ${lat}, ${lon}${pct}`;
     }
@@ -1067,14 +1069,16 @@ async function main() {
   });
 
   function tuneCameraForPreset(lat, lon) {
-    // Use steep pitch so the look-at target appears at screen center.
-    // At -55° pitch and 140m range, the camera is ~115m above and ~80m away,
-    // keeping the ground point near the center of the viewport.
     const target = Cesium.Cartesian3.fromDegrees(lon, lat, 5);
     const tx = Cesium.Transforms.eastNorthUpToFixedFrame(target);
-    viewer.scene.camera.lookAtTransform(tx,
-      new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30), Cesium.Math.toRadians(-55), 140));
-    viewer.scene.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    function setCamera() {
+      viewer.scene.camera.lookAtTransform(tx,
+        new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30), Cesium.Math.toRadians(-55), 140));
+      viewer.scene.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    }
+    setCamera();
+    // Re-apply after a beat to fight any tile-load camera drift
+    setTimeout(setCamera, 300);
   }
 
   // ============================================================
@@ -1082,37 +1086,43 @@ async function main() {
   // ============================================================
   // Clamp a lat/lon to the actual 3D tile surface by raycasting down
   function clampToSurface(lat, lon) {
-    const high = Cesium.Cartesian3.fromDegrees(lon, lat, 500);
-    const dir = Cesium.Cartesian3.normalize(
-      Cesium.Cartesian3.negate(high, new Cesium.Cartesian3()), new Cesium.Cartesian3());
-    // Normalize to point toward Earth center
-    const ellNorm = Cesium.Cartesian3.normalize(high, new Cesium.Cartesian3());
-    Cesium.Cartesian3.negate(ellNorm, dir);
-    const ray = new Cesium.Ray(high, dir);
+    // Use ENU frame to get a true vertical (down) ray, not toward Earth center
+    const origin = Cesium.Cartesian3.fromDegrees(lon, lat, 500);
+    const enuTx = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
+    // Down in ENU is -Z, transform to world
+    const downEnu = new Cesium.Cartesian3(0, 0, -1);
+    const downWorld = new Cesium.Cartesian3();
+    Cesium.Matrix4.multiplyByPointAsVector(enuTx, downEnu, downWorld);
+    Cesium.Cartesian3.normalize(downWorld, downWorld);
+    const ray = new Cesium.Ray(origin, downWorld);
     const pick = viewer.scene.pickFromRay(ray, []);
-    if (pick && pick.position) return pick.position;
-    // Fallback: return at height 0
+    if (pick && pick.position) {
+      const carto = Cesium.Cartographic.fromCartesian(pick.position);
+      console.log(`clampToSurface(${lat}, ${lon}) → hit at ${Cesium.Math.toDegrees(carto.latitude).toFixed(6)}, ${Cesium.Math.toDegrees(carto.longitude).toFixed(6)}, h=${carto.height.toFixed(2)}`);
+      return pick.position;
+    }
+    console.warn(`clampToSurface(${lat}, ${lon}) → no hit, using h=0`);
     return Cesium.Cartesian3.fromDegrees(lon, lat, 0);
   }
 
   function applyDemo(name) {
     if (name === 'single') {
-      const cartA = clampToSurface(47.66952, -122.10550);
+      const cartA = clampToSurface(47.669518, -122.105506);
       setObserverCartesian('A', cartA);
       observers.A.dH = 0; observers.A.yaw = 0;
       observers.B.cart = null; observers.B.carto = null; observers.B.skyview = null;
       selectedId = 'A'; dualMode = false;
-      tuneCameraForPreset(47.66952, -122.10550);
+      tuneCameraForPreset(47.669518, -122.105506);
     }
     if (name === 'dual') {
-      const cartA = clampToSurface(47.66952, -122.10550);
+      const cartA = clampToSurface(47.669518, -122.105506);
       setObserverCartesian('A', cartA);
       observers.A.dH = 0; observers.A.yaw = 0;
-      const cartB = clampToSurface(47.66950, -122.10560);
+      const cartB = Cesium.Cartesian3.fromDegrees(-122.105552, 47.669516, 20.43);
       setObserverCartesian('B', cartB);
       observers.B.dH = 0; observers.B.yaw = 180;
       selectedId = 'A'; dualMode = true;
-      tuneCameraForPreset(47.66951, -122.10555);
+      tuneCameraForPreset(47.669510, -122.105529);
     }
     hasPoint = hasA();
     if (hasPoint) {
@@ -1289,7 +1299,7 @@ async function main() {
     const parts = q.split(',').map(s=>s.trim());
     let flyLat, flyLon, label;
     if (parts.length===2 && !isNaN(+parts[0]) && !isNaN(+parts[1])) {
-      flyLat=+parts[0]; flyLon=+parts[1]; label=`${flyLat.toFixed(4)}, ${flyLon.toFixed(4)}`;
+      flyLat=+parts[0]; flyLon=+parts[1]; label=`${flyLat.toFixed(6)}, ${flyLon.toFixed(6)}`;
     } else {
       searchInput.style.borderColor='#fc4';
       try {
@@ -1356,9 +1366,12 @@ async function main() {
   // KEYBOARD
   // ============================================================
   function resetCamera() {
-    viewer.scene.camera.lookAtTransform(initTx,
-      new Cesium.HeadingPitchRange(Cesium.Math.toRadians(-30),Cesium.Math.toRadians(-25),200));
-    viewer.scene.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    const o = observers.A;
+    if (o.carto) {
+      tuneCameraForPreset(
+        Cesium.Math.toDegrees(o.carto.latitude),
+        Cesium.Math.toDegrees(o.carto.longitude));
+    }
   }
   window.addEventListener('keydown', e => {
     if (document.activeElement === searchInput) return;
